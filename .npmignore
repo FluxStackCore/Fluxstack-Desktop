@@ -1,0 +1,44 @@
+# Source files (use built files)
+src/
+
+# Development files
+.git/
+.gitignore
+tsconfig.json
+bun.lock
+
+# Test and example files
+simple-test.ts
+example.ts
+example-external-project.ts
+fluxworld/
+
+# Development docs
+CLAUDE.md
+
+# Build artifacts
+*.log
+*.tsbuildinfo
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime data
+chrome_data/
+firefox_data/
+
+# Temporary files
+*.tmp
+*.temp
+app-data.json
+
+# Documentation that should stay
+!README.md
+!LICENSE
+!changelog.md
+!roadmap.md

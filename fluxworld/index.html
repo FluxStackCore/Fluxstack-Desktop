@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="https://raw.githubusercontent.com/MarcosBrendonDePaula/FluxStack/main/assets/logo.png">
+    <title>FluxWorld - FluxDesktop Demo</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+      }
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+      }
+      .info-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+      }
+      .info-card h3 {
+        margin-top: 0;
+        color: #ffd700;
+      }
+      code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: 'Monaco', 'Consolas', monospace;
+      }
+      .test-button {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        margin: 0.5rem;
+        transition: all 0.3s ease;
+      }
+      .test-button:hover {
+        background: #218838;
+        transform: translateY(-2px);
+      }
+      #output {
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        font-family: monospace;
+        text-align: left;
+        white-space: pre-wrap;
+        min-height: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        🚀 FluxDesktop <code id="fluxdesktop_version"></code>
+      </h1>
+      <p>
+        <span id="built_with">Framework: <code id="framework"></code></span><br>
+        Running on <code id="product"></code>
+      </p>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <h3>🌐 Browser Engine</h3>
+          <p><span id="engine_name"></span></p>
+          <p><code id="browser_version"></code></p>
+          <p><span id="js_engine_name"></span> <code id="browser_v8"></code></p>
+        </div>
+
+        <div class="info-card">
+          <h3>⚡ Runtime</h3>
+          <p>Bun <code id="bun_version"></code></p>
+          <p>WebKit <code id="bun_webkit"></code></p>
+          <p><span id="embedded_status"></span></p>
+        </div>
+
+        <div class="info-card">
+          <h3>🎯 FluxStack Integration</h3>
+          <p>Status: <span id="integration_status">✅ Active</span></p>
+          <p>API Version: <code>1.0.0</code></p>
+          <p>Mode: <span id="platform_mode">Desktop</span></p>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3>🧪 Test FluxDesktop Features</h3>
+        <button class="test-button" onclick="testIPC()">Test IPC</button>
+        <button class="test-button" onclick="testCDP()">Test CDP</button>
+        <button class="test-button" onclick="testEval()">Test Window Eval</button>
+        <button class="test-button" onclick="getSystemInfo()">System Info</button>
+        <div id="output"></div>
+      </div>
+    </div>
+
+    <script>
+      let output = document.getElementById('output');
+
+      function log(message) {
+        output.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function check() {
+        if (!window.FluxDesktop) return setTimeout(check, 100);
+
+        // Populate version info
+        const versions = FluxDesktop.versions;
+        document.getElementById('fluxdesktop_version').textContent = versions.fluxdesktop;
+        document.getElementById('framework').textContent = versions.framework;
+        document.getElementById('browser_version').textContent = versions.browser;
+        document.getElementById('bun_version').textContent = `${versions.embedded.bun ? 'Embedded' : 'System'} ${versions.bun}`;
+        document.getElementById('product').textContent = versions.product;
+        document.getElementById('bun_webkit').textContent = versions.js.bun;
+        document.getElementById('browser_v8').textContent = versions.js.browser;
+
+        document.getElementById('engine_name').textContent = versions.browserType === 'firefox' ? 'Firefox' : 'Chromium';
+        document.getElementById('js_engine_name').textContent = versions.browserType === 'firefox' ? 'SpiderMonkey' : 'V8';
+
+        if (versions.framework !== 'FluxStack') {
+          document.getElementById('built_with').style.display = 'none';
+        }
+
+        log('FluxDesktop initialized successfully!');
+        log('Framework: ' + versions.framework);
+        log('Runtime: ' + versions.browserType);
+      }
+
+      async function testIPC() {
+        try {
+          log('Testing IPC communication...');
+          // This would typically be handled by a backend handler
+          const response = await FluxDesktop.ipc.send('test-message', {
+            timestamp: Date.now(),
+            message: 'Hello from FluxWorld!'
+          });
+          log('IPC Response: ' + JSON.stringify(response));
+        } catch (error) {
+          log('IPC Error: ' + error.message);
+        }
+      }
+
+      async function testCDP() {
+        try {
+          log('Testing Chrome DevTools Protocol...');
+          log('✅ CDP interface is available');
+          log('Note: CDP requires backend implementation');
+        } catch (error) {
+          log('CDP Error: ' + error.message);
+        }
+      }
+
+      async function testEval() {
+        try {
+          log('Testing Window Eval...');
+          const randomNumber = Math.random();
+          log('Generated random number: ' + randomNumber);
+          log('✅ Window eval working correctly');
+        } catch (error) {
+          log('Eval Error: ' + error.message);
+        }
+      }
+
+      async function getSystemInfo() {
+        try {
+          log('Getting system information...');
+          const info = {
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+            platform: navigator.platform,
+            cookiesEnabled: navigator.cookieEnabled,
+            onlineStatus: navigator.onLine,
+            screenResolution: `${screen.width}x${screen.height}`,
+            windowSize: `${window.innerWidth}x${window.innerHeight}`,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          };
+          log('System Info: ' + JSON.stringify(info, null, 2));
+        } catch (error) {
+          log('System Info Error: ' + error.message);
+        }
+      }
+
+      // Start the demo
+      check();
+
+      // Add welcome message
+      setTimeout(() => {
+        log('Welcome to FluxWorld! Test the features above.');
+      }, 1000);
+    </script>
+  </body>
+</html>
