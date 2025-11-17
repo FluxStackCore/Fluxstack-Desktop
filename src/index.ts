@@ -1,9 +1,9 @@
 import { join, delimiter, sep } from 'node:path';
 import { access, readdir } from 'node:fs/promises';
 
-import Chromium from './browser/chromium.js';
-import Firefox from './browser/firefox.js';
-// import IdleAPI from './lib/idle.js';
+import Chromium from './browser/chromium';
+import Firefox from './browser/firefox';
+// import IdleAPI from './lib/idle';
 
 // Global log function with colored output
 const rgb = (r: number, g: number, b: number, msg: string): string =>

@@ -32,7 +32,7 @@
 
 ```typescript
 // ANTES: JavaScript puro
-const open = require('./src/index.js');
+const open = require('./src/index');
 
 // DEPOIS: TypeScript nativo
 import { open } from '@fluxstack/desktop';

@@ -7,7 +7,7 @@
 // └── node_modules/
 //     └── fluxstack-desktop/  <-- Link para seu projeto FluxDesktop TS
 
-import { open, type OpenOptions, type Window } from '../fluxstack-desktop/src/index.js';
+import { open, type OpenOptions, type Window } from '../fluxstack-desktop/src/index';
 
 interface MyAppConfig {
   title: string;

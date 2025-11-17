@@ -1,4 +1,4 @@
-import StartBrowser from '../launcher/start.js';
+import StartBrowser from '../launcher/start';
 
 interface BrowserConfig {
   browserName: string;

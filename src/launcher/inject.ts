@@ -1,5 +1,5 @@
 import { ChildProcess } from 'node:child_process';
-import IPCApi from '../lib/ipc.js';
+import IPCApi from '../lib/ipc';
 
 interface InjectCDPMessage {
   method: string;
@@ -50,6 +50,7 @@ export default async (
 ): Promise<FluxDesktopWindow> => {
   let pageLoadCallback = (_params?: any) => {};
   let onWindowMessage = (_msg: any) => {};
+  let injectIPCFunction: (() => void) | null = null;
 
   CDP.onMessage(msg => {
     if (msg.method === 'Runtime.bindingCalled' && msg.params.name === '_fluxDesktopSend') {
@@ -59,7 +60,9 @@ export default async (
       pageLoadCallback(msg.params);
     }
     if (msg.method === 'Runtime.executionContextCreated') {
-      injectIPC(); // ensure IPC injection again
+      if (injectIPCFunction) {
+        injectIPCFunction(); // ensure IPC injection again
+      }
     }
   });
 
@@ -79,11 +82,11 @@ export default async (
 
     // Get browser info after attaching
     browserInfo = await CDP.sendMessage('Browser.getVersion');
-    log('browser:', browserInfo?.product);
+    console.log('browser:', browserInfo?.product);
   } else {
     // already attached to target
     browserInfo = await CDP.sendMessage('Browser.getVersion');
-    log('browser:', browserInfo?.product);
+    console.log('browser:', browserInfo?.product);
   }
 
   await CDP.sendMessage('Runtime.enable', {}, sessionId); // enable runtime API
@@ -112,8 +115,9 @@ export default async (
   });
 
   onWindowMessage = ipcMessageCallback;
+  injectIPCFunction = injectIPC;
 
-  log('finished setup');
+  console.log('finished setup');
 
   return {
     window: {

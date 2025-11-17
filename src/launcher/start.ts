@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { Writable, Readable } from 'node:stream';
 
-import ConnectCDP from '../lib/cdp.js';
-import InjectInto from './inject.js';
+import ConnectCDP from '../lib/cdp';
+import InjectInto from './inject';
 
 // Make the CDP connection compatible with inject expectations
 type StartCDPConnection = Awaited<ReturnType<typeof ConnectCDP>>;

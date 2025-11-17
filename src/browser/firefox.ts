@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import StartBrowser from '../launcher/start.js';
+import StartBrowser from '../launcher/start';
 
 interface BrowserConfig {
   browserName: string;

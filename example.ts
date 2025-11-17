@@ -1,4 +1,4 @@
-import { open } from './src/index.js';
+import { open } from './src/index';
 
 async function main() {
   try {
