@@ -71,18 +71,7 @@ async function main() {
       }
     }, 2000);
 
-    // Demonstração de CDP (Chrome DevTools Protocol)
-    setTimeout(async () => {
-      try {
-        console.log('🔧 Testando CDP...');
-        const result = await window.cdp.send('Runtime.evaluate', {
-          expression: 'Math.random()'
-        });
-        console.log('🎲 Número aleatório do browser via CDP:', result.result.value);
-      } catch (error) {
-        console.error('❌ Erro CDP:', error);
-      }
-    }, 3000);
+    // CDP is validated automatically in core - no need for manual testing here
 
   } catch (error) {
     console.error('❌ Erro ao iniciar FluxDesktop:', error);

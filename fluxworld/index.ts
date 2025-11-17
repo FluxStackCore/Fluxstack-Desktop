@@ -64,18 +64,7 @@ async function startFluxWorld() {
       };
     });
 
-    // Demo CDP usage
-    setTimeout(async () => {
-      try {
-        console.log('🔧 Testing CDP integration...');
-        const result = await Browser.cdp.send('Runtime.evaluate', {
-          expression: 'document.title'
-        });
-        console.log('📄 Page title via CDP:', result.result.value);
-      } catch (error) {
-        console.error('❌ CDP Error:', error);
-      }
-    }, 2000);
+    // CDP is validated automatically in core during browser setup
 
     console.log('✅ FluxWorld demo is running!');
     console.log('🌐 Open the browser window to interact with the demo');

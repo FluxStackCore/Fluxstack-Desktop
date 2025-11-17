@@ -119,6 +119,22 @@ export default async (
 
   console.log('finished setup');
 
+  // CDP Health Check - Fundamental validation
+  try {
+    const healthCheck = await CDP.sendMessage('Runtime.evaluate', {
+      expression: 'typeof window'
+    }, sessionId);
+
+    if (healthCheck?.result?.value === 'object') {
+      console.log('✅ CDP connection validated');
+    } else {
+      console.warn('⚠️ CDP health check returned unexpected result');
+    }
+  } catch (error) {
+    console.error('❌ Critical: CDP validation failed:', error);
+    throw new Error('FluxDesktop requires functioning CDP connection');
+  }
+
   return {
     window: {
       eval: evalInWindow,

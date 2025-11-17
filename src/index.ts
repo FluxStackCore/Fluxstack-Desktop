@@ -3,6 +3,7 @@ import { access, readdir } from 'node:fs/promises';
 
 import Chromium from './browser/chromium';
 import Firefox from './browser/firefox';
+import { loadOnLoadWrapper } from './lib/scripts';
 // import IdleAPI from './lib/idle';
 
 // Global log function with colored output
@@ -210,11 +211,7 @@ export const open = async (
   }
 
   if (onLoad) {
-    const toRun = `(() => {
-      if (window.self !== window.top) return; // inside frame
-
-      (${onLoad.toString()})();
-    })();`;
+    const toRun = await loadOnLoadWrapper(onLoad);
 
     Browser.window.eval(toRun);
 
