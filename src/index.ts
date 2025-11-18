@@ -107,12 +107,57 @@ const getBrowserPath = async (browser: BrowserName): Promise<string | null> => {
 };
 
 const findBrowserPath = async (forceBrowser?: BrowserName): Promise<[string, BrowserName] | null> => {
+  // 1. Check for custom browser path first (highest priority)
+  const customPath = FluxStackDesktopConfig.customBrowserPath;
+  if (customPath && customPath.trim() !== '') {
+    if (await exists(customPath)) {
+      log('using custom browser path:', customPath);
+      return [customPath, 'chrome']; // Default to chrome type for custom browsers
+    } else {
+      log('custom browser path not found:', customPath);
+    }
+  }
+
+  // 2. Check for force browser config
+  const configBrowser = FluxStackDesktopConfig.forceBrowser;
+  if (configBrowser && configBrowser.trim() !== '') {
+    // Try as browser name first
+    if (Object.keys(browserPaths[process.platform as Platform] || {}).includes(configBrowser)) {
+      const path = await getBrowserPath(configBrowser as BrowserName);
+      if (path) {
+        log('using config force browser:', configBrowser, 'at:', path);
+        return [path, configBrowser as BrowserName];
+      }
+    }
+    // Try as direct path
+    if (await exists(configBrowser)) {
+      log('using config browser path:', configBrowser);
+      return [configBrowser, 'chrome']; // Default to chrome type for custom paths
+    }
+  }
+
+  // 3. Check for function parameter forceBrowser
   if (forceBrowser) {
     const path = await getBrowserPath(forceBrowser);
     return path ? [path, forceBrowser] : null;
   }
 
-  // Check command line arguments
+  // 4. Check browser priority list
+  const priorityList = FluxStackDesktopConfig.browserPriority;
+  if (priorityList && priorityList.trim() !== '') {
+    const browsers = priorityList.split(',').map(b => b.trim()).filter(Boolean);
+    for (const browserName of browsers) {
+      if (Object.keys(browserPaths[process.platform as Platform] || {}).includes(browserName)) {
+        const path = await getBrowserPath(browserName as BrowserName);
+        if (path) {
+          log('using priority browser:', browserName, 'at:', path);
+          return [path, browserName as BrowserName];
+        }
+      }
+    }
+  }
+
+  // 5. Check command line arguments
   const platformPaths = browserPaths[process.platform as Platform];
   if (platformPaths) {
     for (const browserName of Object.keys(platformPaths) as BrowserName[]) {
@@ -123,10 +168,18 @@ const findBrowserPath = async (forceBrowser?: BrowserName): Promise<[string, Bro
       }
     }
 
-    // Auto-detect available browser
-    for (const browserName of Object.keys(platformPaths) as BrowserName[]) {
-      const path = await getBrowserPath(browserName);
-      if (path) return [path, browserName];
+    // 6. Auto-detect available browser (fallback) - Priority: Edge > Chrome > Firefox
+    const browserPriority: BrowserName[] = [
+      'edge',
+      'chrome', 'chrome_canary', 'chromium', 'chromium_snapshot',
+      'firefox', 'firefox_nightly'
+    ];
+
+    for (const browserName of browserPriority) {
+      if (browserName in platformPaths) {
+        const path = await getBrowserPath(browserName);
+        if (path) return [path, browserName];
+      }
     }
   }
 
@@ -145,6 +198,27 @@ const getDataPath = (): string => {
   return customPath && customPath.trim() !== ''
     ? customPath
     : join(process.cwd(), 'chrome_data');
+};
+
+const getCustomBrowserArgs = (): string[] => {
+  const customArgsString = FluxStackDesktopConfig.customBrowserArgs;
+  if (!customArgsString || customArgsString.trim() === '') {
+    return [];
+  }
+
+  // Split by spaces but preserve quoted arguments
+  const args: string[] = [];
+  const matches = customArgsString.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+
+  for (const match of matches) {
+    // Remove surrounding quotes if present
+    const arg = match.replace(/^"(.*)"$/, '$1');
+    if (arg.trim()) {
+      args.push(arg);
+    }
+  }
+
+  return args;
 };
 
 // Window size interface (browsers expect [width, height] tuple)
@@ -179,12 +253,18 @@ const startBrowser = async (url: string, { windowSize, forceBrowser, onBrowserEx
   log('data path:', dataPath);
 
   const browserType = browserName.startsWith('firefox') ? 'firefox' : 'chromium';
+  const customArgs = getCustomBrowserArgs();
+
+  if (customArgs.length > 0) {
+    log('using custom browser args:', customArgs);
+  }
 
   const Browser = await (browserType === 'firefox' ? Firefox : Chromium)({
     browserName: browserFriendlyName,
     dataPath,
     browserPath,
-    onBrowserExit
+    onBrowserExit,
+    customArgs
   }, {
     url,
     windowSize

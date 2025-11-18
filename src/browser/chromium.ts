@@ -5,6 +5,7 @@ interface BrowserConfig {
   browserPath: string;
   dataPath: string;
   onBrowserExit?: () => void;
+  customArgs?: string[];
 }
 
 interface WindowConfig {
@@ -23,7 +24,7 @@ const presets: Record<PresetName, string> = {
 };
 
 export default async (
-  { browserName, browserPath, dataPath, onBrowserExit }: BrowserConfig,
+  { browserName, browserPath, dataPath, onBrowserExit, customArgs = [] }: BrowserConfig,
   { url, windowSize }: WindowConfig
 ) => {
   const args: string[] = [
@@ -31,7 +32,8 @@ export default async (
     `--remote-debugging-pipe`,
     `--user-data-dir=${dataPath}`,
     windowSize ? `--window-size=${windowSize.join(',')}` : '',
-    ...`--new-window --disable-extensions --disable-default-apps --disable-breakpad --disable-crashpad --disable-background-networking --disable-domain-reliability --disable-component-update --disable-sync --disable-features=AutofillServerCommunication ${presets.perf}`.split(' ')
+    ...`--new-window --disable-extensions --disable-default-apps --disable-breakpad --disable-crashpad --disable-background-networking --disable-domain-reliability --disable-component-update --disable-sync --disable-features=AutofillServerCommunication ${presets.perf}`.split(' '),
+    ...customArgs // Add custom arguments at the end (so they can override defaults)
   ].filter(Boolean);
 
   return await StartBrowser(browserPath, args, 'websocket', { browserName, onBrowserExit });

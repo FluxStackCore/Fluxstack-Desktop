@@ -15,8 +15,17 @@ const FluxStackDesktopConfigSchema = {
   // Auto-shutdown server when window closes
   autoShutdown: config.boolean('FLUXSTACK_DESKTOP_AUTO_SHUTDOWN', true),
 
-  // Default browser to use
+  // Default browser to use (name or path)
   forceBrowser: config.string('FLUXSTACK_DESKTOP_BROWSER', '', false),
+
+  // Custom browser executable path (overrides detection)
+  customBrowserPath: config.string('FLUXSTACK_DESKTOP_CUSTOM_BROWSER_PATH', '', false),
+
+  // Browser priority list (comma-separated, e.g., "chrome,firefox,edge")
+  browserPriority: config.string('FLUXSTACK_DESKTOP_BROWSER_PRIORITY', '', false),
+
+  // Custom browser arguments (space-separated additional flags)
+  customBrowserArgs: config.string('FLUXSTACK_DESKTOP_CUSTOM_BROWSER_ARGS', '', false),
 
   // Default window size [width, height]
   windowWidth: config.number('FLUXSTACK_DESKTOP_WINDOW_WIDTH', 1200),

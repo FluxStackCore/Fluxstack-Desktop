@@ -48,6 +48,12 @@ FLUXSTACK_DESKTOP_SHUTDOWN_DELAY=1000
 
 # Custom data path for browser storage (optional)
 FLUXSTACK_DESKTOP_DATA_PATH=/custom/path/to/browser-data
+
+# Browser Selection and Customization
+FLUXSTACK_DESKTOP_BROWSER=chrome                                    # Force specific browser
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_PATH=/path/to/custom/browser.exe   # Custom browser executable
+FLUXSTACK_DESKTOP_BROWSER_PRIORITY=chrome,firefox,edge              # Browser priority list
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_ARGS="--disable-web-security --allow-running-insecure-content"
 ```
 
 The plugin's configuration is located in `plugins/FluxStack-Desktop/config/index.ts`.
@@ -279,10 +285,83 @@ FLUXSTACK_DESKTOP_DATA_PATH=%APPDATA%\MyApp\BrowserData
 
 ## Features
 
-### Browser Detection
-- Automatic detection of installed browsers
-- Platform-specific path resolution (Windows, Linux, macOS)
-- Fallback to alternative browsers if primary choice unavailable
+### Advanced Browser Selection
+
+The plugin offers multiple sophisticated methods for browser selection and customization:
+
+#### **🎯 Selection Priority Order:**
+1. **Custom Browser Path** - `FLUXSTACK_DESKTOP_CUSTOM_BROWSER_PATH` (highest priority)
+2. **Force Browser Config** - `FLUXSTACK_DESKTOP_BROWSER`
+3. **Function Parameter** - `forceBrowser` in API calls
+4. **Browser Priority List** - `FLUXSTACK_DESKTOP_BROWSER_PRIORITY`
+5. **Command Line Arguments** - `--chrome`, `--firefox`, etc.
+6. **Auto-Detection** - Automatic detection with priority: **Edge → Chrome → Firefox** (fallback)
+
+#### **🎨 Browser Selection Examples:**
+
+**Force Specific Browser:**
+```bash
+# Use Chrome specifically
+FLUXSTACK_DESKTOP_BROWSER=chrome
+
+# Use Firefox specifically
+FLUXSTACK_DESKTOP_BROWSER=firefox
+
+# Use Edge specifically
+FLUXSTACK_DESKTOP_BROWSER=edge
+```
+
+**Custom Browser Executable:**
+```bash
+# Use custom Chrome build
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_PATH=/opt/google/chrome-dev/chrome
+
+# Use Brave browser
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_PATH="C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+
+# Use Chromium dev build
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_PATH=/usr/bin/chromium-dev
+```
+
+**Browser Priority Fallbacks:**
+```bash
+# Try Chrome first, then Firefox, then Edge
+FLUXSTACK_DESKTOP_BROWSER_PRIORITY=chrome,firefox,edge
+
+# Prefer Firefox development versions
+FLUXSTACK_DESKTOP_BROWSER_PRIORITY=firefox_nightly,firefox,chrome
+
+# Custom priority for development
+FLUXSTACK_DESKTOP_BROWSER_PRIORITY=chrome_canary,chromium,chrome
+```
+
+**Custom Browser Arguments:**
+```bash
+# Development flags
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_ARGS="--disable-web-security --disable-features=VizDisplayCompositor"
+
+# Performance optimization
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_ARGS="--enable-gpu-rasterization --enable-zero-copy"
+
+# Debug mode
+FLUXSTACK_DESKTOP_CUSTOM_BROWSER_ARGS="--remote-debugging-port=9222 --disable-extensions"
+```
+
+#### **🔍 Browser Detection Features:**
+- **Smart detection** of installed browsers across platforms
+- **Optimized priority order**: **Edge → Chrome → Firefox** for best compatibility
+- **Platform-specific path resolution** (Windows, Linux, macOS)
+- **Automatic fallback** to alternative browsers if primary choice unavailable
+- **Command-line override** support (`--chrome`, `--firefox`, etc.)
+- **Path validation** to ensure browsers exist before launching
+- **Custom browser support** for non-standard installations
+
+#### **🎯 Why Edge First?**
+- **Modern Edge** is Chromium-based with excellent CDP support
+- **Native Windows integration** for better desktop experience
+- **Performance optimized** for Windows applications
+- **Automatic updates** ensure latest web standards
+- **Fallback to Chrome/Firefox** if Edge not available
 
 ### Window Management
 - Configurable window size
