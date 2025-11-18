@@ -2,35 +2,49 @@
   "name": "@fluxstack/desktop",
   "version": "1.0.0",
   "description": "FluxStack Desktop - Create native desktop applications from web apps using system browsers and Bun runtime.",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "index.ts",
+  "types": "index.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "import": "./index.ts",
+      "types": "./index.ts"
+    },
+    "./config": {
+      "import": "./config/index.ts",
+      "types": "./config/index.ts"
+    },
+    "./src": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
     }
   },
   "scripts": {
-    "dev": "bun run --watch example.ts",
-    "demo": "bun fluxworld/index.ts",
-    "test": "bun simple-test.ts",
-    "example": "bun example.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun --sourcemap && bun run tsc --emitDeclarationOnly",
-    "typecheck": "bun run tsc --noEmit",
-    "clean": "rm -rf dist",
-    "prebuild": "bun run clean"
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test",
+    "build": "bun build src/index.ts --outdir dist --target bun --sourcemap",
+    "typecheck": "tsc --noEmit",
+    "example": "bun run example.ts"
   },
+  "keywords": [
+    "fluxstack",
+    "plugin",
+    "desktop",
+    "browser",
+    "electron-alternative",
+    "typescript"
+  ],
+  "author": "FluxStack Team",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MarcosBrendonDePaula/FluxStack.git"
   },
-  "author": "FluxStack Team",
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/MarcosBrendonDePaula/FluxStack/issues"
   },
   "homepage": "https://github.com/MarcosBrendonDePaula/FluxStack#readme",
   "type": "module",
+  "peerDependencies": {},
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -39,5 +53,15 @@
   },
   "trustedDependencies": [
     "bun-types"
-  ]
+  ],
+  "fluxstack": {
+    "plugin": true,
+    "version": "^1.0.0",
+    "hooks": [
+      "setup",
+      "onServerStart"
+    ],
+    "category": "desktop",
+    "tags": ["desktop", "browser", "electron-alternative"]
+  }
 }

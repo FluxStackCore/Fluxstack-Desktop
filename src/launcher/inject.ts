@@ -23,6 +23,7 @@ interface CDPConnection {
 
 interface InjectOptions {
   browserName?: string;
+  onBrowserExit?: () => void;
 }
 
 type InjectionType = 'browser' | 'target';
@@ -46,11 +47,31 @@ export default async (
   CDP: CDPConnection,
   proc: ChildProcess,
   injectionType: InjectionType = 'browser',
-  { browserName = 'unknown' }: InjectOptions = {}
+  { browserName = 'unknown', onBrowserExit }: InjectOptions = {}
 ): Promise<FluxDesktopWindow> => {
   let pageLoadCallback = (_params?: any) => {};
   let onWindowMessage = (_msg: any) => {};
   let injectIPCFunction: (() => void) | null = null;
+
+  // Setup browser process exit detection
+  if (onBrowserExit) {
+    proc.on('exit', (code, signal) => {
+      console.log(`[FluxStack Desktop] Browser process exited with code: ${code}, signal: ${signal}`);
+      onBrowserExit();
+    });
+
+    proc.on('close', (code, signal) => {
+      console.log(`[FluxStack Desktop] Browser process closed with code: ${code}, signal: ${signal}`);
+      if (!proc.killed) {
+        onBrowserExit();
+      }
+    });
+
+    proc.on('error', (error) => {
+      console.error(`[FluxStack Desktop] Browser process error:`, error);
+      onBrowserExit();
+    });
+  }
 
   CDP.onMessage(msg => {
     if (msg.method === 'Runtime.bindingCalled' && msg.params.name === '_fluxDesktopSend') {

@@ -4,6 +4,7 @@ import { access, readdir } from 'node:fs/promises';
 import Chromium from './browser/chromium';
 import Firefox from './browser/firefox';
 import { loadOnLoadWrapper } from './lib/scripts';
+import FluxStackDesktopConfig from '../config';
 // import IdleAPI from './lib/idle';
 
 // Global log function with colored output
@@ -25,8 +26,6 @@ global.log = (...args: any[]): void =>
 
 // Set FluxDesktop version
 process.versions.fluxdesktop = '1.0.0';
-
-const __dirname = import.meta.dir;
 
 // Browser types
 type BrowserName =
@@ -140,7 +139,13 @@ const getFriendlyName = (whichBrowser: string): string =>
     match[0]! + ' ' + match[2]!.toUpperCase()
   );
 
-const getDataPath = (): string => join(__dirname, '..', 'chrome_data');
+const getDataPath = (): string => {
+  // Use custom path if provided in config, otherwise default to current working directory
+  const customPath = FluxStackDesktopConfig.dataPath;
+  return customPath && customPath.trim() !== ''
+    ? customPath
+    : join(process.cwd(), 'chrome_data');
+};
 
 // Window size interface (browsers expect [width, height] tuple)
 type WindowSize = [number, number];
@@ -155,9 +160,10 @@ interface BrowserOptions {
 interface StartBrowserOptions {
   windowSize?: WindowSize | undefined;
   forceBrowser?: BrowserName | undefined;
+  onBrowserExit?: () => void;
 }
 
-const startBrowser = async (url: string, { windowSize, forceBrowser }: StartBrowserOptions) => {
+const startBrowser = async (url: string, { windowSize, forceBrowser, onBrowserExit }: StartBrowserOptions) => {
   const dataPath = getDataPath();
   const browserInfo = await findBrowserPath(forceBrowser);
 
@@ -177,7 +183,8 @@ const startBrowser = async (url: string, { windowSize, forceBrowser }: StartBrow
   const Browser = await (browserType === 'firefox' ? Firefox : Chromium)({
     browserName: browserFriendlyName,
     dataPath,
-    browserPath
+    browserPath,
+    onBrowserExit
   }, {
     url,
     windowSize
@@ -193,6 +200,8 @@ const startBrowser = async (url: string, { windowSize, forceBrowser }: StartBrow
 export interface OpenOptions extends BrowserOptions {
   /** Function to evaluate in the web context once loaded. */
   onLoad?: Function;
+  /** Callback when browser process exits/closes. */
+  onBrowserExit?: () => void;
 }
 
 /**
@@ -200,11 +209,11 @@ export interface OpenOptions extends BrowserOptions {
  */
 export const open = async (
   url: string,
-  { windowSize, onLoad, forceBrowser }: OpenOptions = {}
+  { windowSize, onLoad, forceBrowser, onBrowserExit }: OpenOptions = {}
 ): Promise<any> => {
   log('starting browser...');
 
-  const Browser = await startBrowser(url, { windowSize, forceBrowser });
+  const Browser = await startBrowser(url, { windowSize, forceBrowser, onBrowserExit });
 
   if (!Browser) {
     throw new Error('Failed to start browser');
@@ -223,3 +232,12 @@ export const open = async (
 
   return Browser;
 };
+
+// Export utility functions and types
+export { createDesktopUtils, type DesktopUtils } from './utils';
+export type {
+  ScreenshotOptions,
+  WindowState,
+  NotificationOptions,
+  FileDialogOptions
+} from './utils';

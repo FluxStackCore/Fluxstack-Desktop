@@ -7,6 +7,7 @@ interface BrowserConfig {
   browserName: string;
   browserPath: string;
   dataPath: string;
+  onBrowserExit?: () => void;
 }
 
 interface WindowConfig {
@@ -15,7 +16,7 @@ interface WindowConfig {
 }
 
 export default async (
-  { browserName, browserPath, dataPath }: BrowserConfig,
+  { browserName, browserPath, dataPath, onBrowserExit }: BrowserConfig,
   { url, windowSize }: WindowConfig
 ) => {
   await mkdir(dataPath, { recursive: true });
@@ -94,5 +95,5 @@ html:not([tabsintitlebar="true"]) .tab-icon-image {
     '-no-remote'
   ];
 
-  return await StartBrowser(browserPath, args, 'websocket', { browserName });
+  return await StartBrowser(browserPath, args, 'websocket', { browserName, onBrowserExit });
 };

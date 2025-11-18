@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@gluon-framework/gluon",
+      "name": "@fluxstack/desktop",
       "devDependencies": {
         "@types/node": "^20.0.0",
         "bun-types": "^1.0.0",

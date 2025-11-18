@@ -13,6 +13,7 @@ type Transport = 'websocket' | 'stdio';
 
 interface ExtraOptions {
   browserName?: string;
+  onBrowserExit?: () => void;
   [key: string]: any;
 }
 
@@ -56,5 +57,8 @@ export default async (
       throw new Error(`Unknown transport: ${transport}`);
   }
 
-  return await InjectInto(CDP as any, proc, transport === 'stdio' ? 'browser' : 'target', extra);
+  return await InjectInto(CDP as any, proc, transport === 'stdio' ? 'browser' : 'target', {
+    browserName: extra.browserName,
+    onBrowserExit: extra.onBrowserExit
+  });
 };

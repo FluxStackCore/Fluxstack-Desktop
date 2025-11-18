@@ -1,7 +1,9 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import '../types';
 
-const SCRIPTS_DIR = join(import.meta.dir, '..', '..', 'scripts');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SCRIPTS_DIR = join(__dirname, '..', '..', 'scripts');
 
 /**
  * Load and process a script template with variable replacements
@@ -14,7 +16,7 @@ export async function loadScript(
   replacements: Record<string, string> = {}
 ): Promise<string> {
   const scriptPath = join(SCRIPTS_DIR, filename);
-  let content = await readFile(scriptPath, 'utf-8');
+  let content = await Bun.file(scriptPath).text();
 
   // Replace template variables
   for (const [key, value] of Object.entries(replacements)) {

@@ -4,6 +4,7 @@ interface BrowserConfig {
   browserName: string;
   browserPath: string;
   dataPath: string;
+  onBrowserExit?: () => void;
 }
 
 interface WindowConfig {
@@ -22,7 +23,7 @@ const presets: Record<PresetName, string> = {
 };
 
 export default async (
-  { browserName, browserPath, dataPath }: BrowserConfig,
+  { browserName, browserPath, dataPath, onBrowserExit }: BrowserConfig,
   { url, windowSize }: WindowConfig
 ) => {
   const args: string[] = [
@@ -33,5 +34,5 @@ export default async (
     ...`--new-window --disable-extensions --disable-default-apps --disable-breakpad --disable-crashpad --disable-background-networking --disable-domain-reliability --disable-component-update --disable-sync --disable-features=AutofillServerCommunication ${presets.perf}`.split(' ')
   ].filter(Boolean);
 
-  return await StartBrowser(browserPath, args, 'websocket', { browserName });
+  return await StartBrowser(browserPath, args, 'websocket', { browserName, onBrowserExit });
 };
