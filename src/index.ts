@@ -184,20 +184,20 @@ const findBrowserPath = async (forceBrowser?: BrowserName): Promise<[string, Bro
     }
   }
 
-  // 7. Fallback: Try local Chrome for Testing first, then download if needed
+  // 7. Fallback: Try local Chromium first, then download if needed
   try {
     if (await hasLocalChromium()) {
       const chromiumPath = getLocalChromiumPath();
-      log('using local Chrome for Testing:', chromiumPath);
+      log('using local Chromium:', chromiumPath);
       return [chromiumPath, 'chromium'];
     }
 
-    // No browser found anywhere, download Chrome for Testing
-    log('no browser found in system, will download Chrome for Testing');
+    // No browser found anywhere, download Chromium
+    log('no browser found in system, will download Chromium');
     const chromiumPath = await ensureChromium();
     return [chromiumPath, 'chromium'];
   } catch (error) {
-    log('failed to ensure Chrome for Testing:', error instanceof Error ? error.message : String(error));
+    log('failed to ensure Chromium:', error instanceof Error ? error.message : String(error));
     return null;
   }
 };

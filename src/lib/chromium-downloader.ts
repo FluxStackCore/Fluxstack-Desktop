@@ -12,35 +12,38 @@ interface PlatformInfo {
 
 /**
  * Gets the platform-specific information for Chromium download
- * Using Chrome for Testing - Official Google builds for automation
+ * Using pure Chromium builds from official Google snapshots
  */
 const getPlatformInfo = (): PlatformInfo => {
   const platform = process.platform;
   const arch = process.arch;
 
-  // Chrome for Testing - Stable version
-  // Source: https://googlechromelabs.github.io/chrome-for-testing/
-  const version = '142.0.7444.175';
-  const baseUrl = `https://storage.googleapis.com/chrome-for-testing-public/${version}`;
+  // Chromium snapshots - Stable builds
+  // Source: https://storage.googleapis.com/chromium-browser-snapshots/
+  // These are pure Chromium (not branded Chrome)
+  const baseUrl = 'https://storage.googleapis.com/chromium-browser-snapshots';
 
   let downloadUrl: string;
   let executablePath: string;
+  let revision: string;
 
   if (platform === 'linux') {
-    downloadUrl = `${baseUrl}/linux64/chrome-linux64.zip`;
-    executablePath = 'chrome-linux64/chrome';
+    revision = '1262506'; // Stable Linux x64 build (Chromium ~122)
+    downloadUrl = `${baseUrl}/Linux_x64/${revision}/chrome-linux.zip`;
+    executablePath = 'chrome-linux/chrome';
   } else if (platform === 'win32') {
-    // Use win64 for better compatibility
-    downloadUrl = `${baseUrl}/win64/chrome-win64.zip`;
-    executablePath = 'chrome-win64/chrome.exe';
+    revision = '1262506'; // Stable Windows x64 build
+    downloadUrl = `${baseUrl}/Win_x64/${revision}/chrome-win.zip`;
+    executablePath = 'chrome-win/chrome.exe';
   } else if (platform === 'darwin') {
     if (arch === 'arm64') {
-      downloadUrl = `${baseUrl}/mac-arm64/chrome-mac-arm64.zip`;
-      executablePath = 'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+      revision = '1262506'; // Stable macOS ARM64 build
+      downloadUrl = `${baseUrl}/Mac_Arm/${revision}/chrome-mac.zip`;
     } else {
-      downloadUrl = `${baseUrl}/mac-x64/chrome-mac-x64.zip`;
-      executablePath = 'chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+      revision = '1262506'; // Stable macOS x64 build
+      downloadUrl = `${baseUrl}/Mac/${revision}/chrome-mac.zip`;
     }
+    executablePath = 'chrome-mac/Chromium.app/Contents/MacOS/Chromium';
   } else {
     throw new Error(`Unsupported platform: ${platform}`);
   }
@@ -175,8 +178,8 @@ export const downloadChromium = async (): Promise<string> => {
   const chromiumDir = getChromiumDir();
   const zipPath = join(chromiumDir, 'chromium.zip');
 
-  log('No browser found. Downloading Chrome for Testing...');
-  log('This may take a few minutes on first run (~150-300MB)...');
+  log('No browser found. Downloading Chromium...');
+  log('This may take a few minutes on first run (~150-250MB)...');
 
   // Create chromium directory if it doesn't exist
   if (!existsSync(chromiumDir)) {
@@ -210,7 +213,7 @@ export const downloadChromium = async (): Promise<string> => {
       }
     }
 
-    log('Chrome for Testing downloaded successfully!');
+    log('Chromium downloaded successfully!');
     log('Location:', executablePath);
     return executablePath;
   } catch (error) {
@@ -223,16 +226,16 @@ export const downloadChromium = async (): Promise<string> => {
       // Ignore cleanup errors
     }
 
-    throw new Error(`Failed to download Chrome for Testing: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to download Chromium: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
 /**
- * Ensures Chrome for Testing is available, downloading if necessary
+ * Ensures Chromium is available, downloading if necessary
  */
 export const ensureChromium = async (): Promise<string> => {
   if (await hasLocalChromium()) {
-    log('Using local Chrome for Testing');
+    log('Using local Chromium');
     return getLocalChromiumPath();
   }
 
