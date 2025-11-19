@@ -84,25 +84,22 @@ export function generateWindowControlsScript(config: WindowControlsConfig): stri
     // Check if a specific control is enabled
     isEnabled: function(control) {
       switch (control) {
-        case 'minimize':
-          return windowControls.enableMinimize;
-        case 'maximize':
-          return windowControls.enableMaximize;
-        case 'close':
-          return windowControls.enableClose;
         case 'contextMenu':
           return !windowControls.disableContextMenu;
         case 'resizable':
           return windowControls.resizable;
+        case 'kioskMode':
+          return windowControls.kioskMode;
         default:
           return false;
       }
     },
 
-    // Request to minimize window (if enabled)
+    // Request to minimize window
+    // Note: Cannot be controlled in Chrome/Edge --app mode
     minimize: async function() {
-      if (!windowControls.enableMinimize && !windowControls.kioskMode) {
-        console.warn('[FluxDesktop] Minimize is disabled');
+      if (windowControls.kioskMode) {
+        console.warn('[FluxDesktop] Minimize is blocked in kiosk mode');
         return false;
       }
 
@@ -120,10 +117,11 @@ export function generateWindowControlsScript(config: WindowControlsConfig): stri
       return false;
     },
 
-    // Request to maximize window (if enabled)
+    // Request to maximize window
+    // Note: Cannot be controlled in Chrome/Edge --app mode
     maximize: async function() {
-      if (!windowControls.enableMaximize && !windowControls.kioskMode) {
-        console.warn('[FluxDesktop] Maximize is disabled');
+      if (windowControls.kioskMode) {
+        console.warn('[FluxDesktop] Maximize is blocked in kiosk mode');
         return false;
       }
 
@@ -141,10 +139,10 @@ export function generateWindowControlsScript(config: WindowControlsConfig): stri
       return false;
     },
 
-    // Request to close window (if enabled)
+    // Request to close window
     close: async function() {
-      if (!windowControls.enableClose && !windowControls.kioskMode) {
-        console.warn('[FluxDesktop] Close is disabled');
+      if (windowControls.kioskMode) {
+        console.warn('[FluxDesktop] Close is blocked in kiosk mode');
         return false;
       }
 
@@ -196,9 +194,9 @@ export function setupWindowControlHandlers(
 ): void {
   // Handle minimize request
   browser.ipc.on('window:minimize', async () => {
-    if (!config.enableMinimize && !config.kioskMode) {
-      console.warn('[FluxDesktop] Minimize blocked by configuration');
-      return { success: false, reason: 'disabled' };
+    if (config.kioskMode) {
+      console.warn('[FluxDesktop] Minimize blocked in kiosk mode');
+      return { success: false, reason: 'kiosk_mode' };
     }
 
     try {
@@ -216,9 +214,9 @@ export function setupWindowControlHandlers(
 
   // Handle maximize request
   browser.ipc.on('window:maximize', async () => {
-    if (!config.enableMaximize && !config.kioskMode) {
-      console.warn('[FluxDesktop] Maximize blocked by configuration');
-      return { success: false, reason: 'disabled' };
+    if (config.kioskMode) {
+      console.warn('[FluxDesktop] Maximize blocked in kiosk mode');
+      return { success: false, reason: 'kiosk_mode' };
     }
 
     try {
@@ -236,9 +234,9 @@ export function setupWindowControlHandlers(
 
   // Handle close request
   browser.ipc.on('window:close', async () => {
-    if (!config.enableClose && !config.kioskMode) {
-      console.warn('[FluxDesktop] Close blocked by configuration');
-      return { success: false, reason: 'disabled' };
+    if (config.kioskMode) {
+      console.warn('[FluxDesktop] Close blocked in kiosk mode');
+      return { success: false, reason: 'kiosk_mode' };
     }
 
     try {

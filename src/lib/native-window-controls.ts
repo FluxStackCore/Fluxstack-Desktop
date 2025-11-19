@@ -177,7 +177,9 @@ export async function applyNativeWindowControls(
   }
 
   if (config.resizable) {
-    console.log('[FluxDesktop] Window is resizable - no restrictions to apply');
+    if (!silent) {
+      console.log('[FluxDesktop] Window is resizable - no restrictions to apply');
+    }
     return;
   }
 
@@ -293,11 +295,11 @@ export function monitorWindowControls(
   config: WindowControlsConfig,
   browserName: string
 ): void {
-  if (!config.resizable || !config.enableMinimize || !config.enableMaximize) {
+  if (!config.resizable) {
     // Re-apply controls every 10 seconds
     const interval = setInterval(async () => {
       if (!proc.killed && proc.exitCode === null) {
-        await applyNativeWindowControls(proc, config, browserName);
+        await applyNativeWindowControls(proc, config, browserName, true);
       } else {
         clearInterval(interval);
       }
