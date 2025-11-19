@@ -139,35 +139,42 @@ function Modify-WindowStyle {
         Write-Host "New style: 0x$($newStyle.ToString('X8'))"
 
         # METHOD 2: Disable system menu items (MORE AGGRESSIVE)
+        Write-Host "METHOD 2: Attempting to modify system menu..."
         try {
             $hMenu = [WindowAPI]::GetSystemMenu($hwnd, $false)
+            Write-Host "GetSystemMenu returned: $hMenu"
 
             if ($hMenu -ne [IntPtr]::Zero) {
-                Write-Host "Disabling system menu items..."
+                Write-Host "System menu handle is valid, disabling items..."
 
                 if (-not $EnableMinimize) {
-                    [WindowAPI]::EnableMenuItem($hMenu, 0xF020, 0x00000001) | Out-Null  # SC_MINIMIZE
-                    [WindowAPI]::DeleteMenu($hMenu, 0xF020, 0x00000000) | Out-Null
-                    Write-Host "- Disabled minimize in system menu"
+                    $result1 = [WindowAPI]::EnableMenuItem($hMenu, 0xF020, 0x00000001)  # SC_MINIMIZE
+                    $result2 = [WindowAPI]::DeleteMenu($hMenu, 0xF020, 0x00000000)
+                    Write-Host "- Minimize: EnableMenuItem=$result1, DeleteMenu=$result2"
                 }
 
                 if (-not $EnableMaximize) {
-                    [WindowAPI]::EnableMenuItem($hMenu, 0xF030, 0x00000001) | Out-Null  # SC_MAXIMIZE
-                    [WindowAPI]::DeleteMenu($hMenu, 0xF030, 0x00000000) | Out-Null
-                    Write-Host "- Disabled maximize in system menu"
+                    $result1 = [WindowAPI]::EnableMenuItem($hMenu, 0xF030, 0x00000001)  # SC_MAXIMIZE
+                    $result2 = [WindowAPI]::DeleteMenu($hMenu, 0xF030, 0x00000000)
+                    Write-Host "- Maximize: EnableMenuItem=$result1, DeleteMenu=$result2"
                 }
 
                 if (-not $Resizable) {
-                    [WindowAPI]::EnableMenuItem($hMenu, 0xF000, 0x00000001) | Out-Null  # SC_SIZE
-                    [WindowAPI]::DeleteMenu($hMenu, 0xF000, 0x00000000) | Out-Null
-                    Write-Host "- Disabled resize in system menu"
+                    $result1 = [WindowAPI]::EnableMenuItem($hMenu, 0xF000, 0x00000001)  # SC_SIZE
+                    $result2 = [WindowAPI]::DeleteMenu($hMenu, 0xF000, 0x00000000)
+                    Write-Host "- Resize: EnableMenuItem=$result1, DeleteMenu=$result2"
                 }
 
                 # Force redraw menu
-                [WindowAPI]::DrawMenuBar($hwnd) | Out-Null
+                $drawResult = [WindowAPI]::DrawMenuBar($hwnd)
+                Write-Host "DrawMenuBar result: $drawResult"
+                Write-Host "System menu modifications applied"
+            } else {
+                Write-Host "System menu handle is NULL - window might not have a system menu"
             }
         } catch {
-            Write-Host "Warning: Could not modify system menu: $_"
+            Write-Host "ERROR modifying system menu: $_"
+            Write-Host "Exception details: $($_.Exception.Message)"
         }
 
         Write-Host "Applied window modifications successfully"
