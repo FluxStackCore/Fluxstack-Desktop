@@ -1,5 +1,6 @@
 import { ChildProcess } from 'node:child_process';
 import IPCApi from '../lib/ipc';
+import { generateWindowControlsScript, setupWindowControlHandlers, type WindowControlsConfig } from '../lib/window-controls';
 
 interface InjectCDPMessage {
   method: string;
@@ -24,6 +25,7 @@ interface CDPConnection {
 interface InjectOptions {
   browserName?: string;
   onBrowserExit?: () => void;
+  windowControls?: WindowControlsConfig;
 }
 
 type InjectionType = 'browser' | 'target';
@@ -47,7 +49,7 @@ export default async (
   CDP: CDPConnection,
   proc: ChildProcess,
   injectionType: InjectionType = 'browser',
-  { browserName = 'unknown', onBrowserExit }: InjectOptions = {}
+  { browserName = 'unknown', onBrowserExit, windowControls }: InjectOptions = {}
 ): Promise<FluxDesktopWindow> => {
   let pageLoadCallback = (_params?: any) => {};
   let onWindowMessage = (_msg: any) => {};
@@ -156,21 +158,42 @@ export default async (
     throw new Error('FluxDesktop requires functioning CDP connection');
   }
 
-  return {
+  // Create browser instance for window controls
+  const browserInstance = {
     window: {
       eval: evalInWindow,
     },
-
     ipc: IPC,
-
     cdp: {
       send: (method: string, params?: Record<string, any>) =>
         CDP.sendMessage(method, params, sessionId)
     },
-
     close: (): void => {
       CDP.close();
       proc.kill();
     }
   };
+
+  // Setup window controls if config provided
+  if (windowControls) {
+    console.log('setting up window controls:', windowControls);
+
+    // Inject window controls script into browser
+    const windowControlsScript = generateWindowControlsScript(windowControls);
+
+    // Inject immediately
+    await evalInWindow(windowControlsScript);
+
+    // Also inject on every new document (for navigation)
+    await CDP.sendMessage('Page.addScriptToEvaluateOnNewDocument', {
+      source: windowControlsScript
+    }, sessionId);
+
+    // Setup backend IPC handlers
+    setupWindowControlHandlers(browserInstance, windowControls);
+
+    console.log('✅ Window controls initialized');
+  }
+
+  return browserInstance;
 };

@@ -11,9 +11,20 @@ const portRange: [number, number] = [10000, 60000];
 
 type Transport = 'websocket' | 'stdio';
 
+interface WindowControlsConfig {
+  enableMinimize: boolean;
+  enableMaximize: boolean;
+  enableClose: boolean;
+  disableContextMenu: boolean;
+  resizable: boolean;
+  kioskMode: boolean;
+  frameless: boolean;
+}
+
 interface ExtraOptions {
   browserName?: string;
   onBrowserExit?: () => void;
+  windowControls?: WindowControlsConfig;
   [key: string]: any;
 }
 
@@ -59,6 +70,7 @@ export default async (
 
   return await InjectInto(CDP as any, proc, transport === 'stdio' ? 'browser' : 'target', {
     browserName: extra.browserName,
-    onBrowserExit: extra.onBrowserExit
+    onBrowserExit: extra.onBrowserExit,
+    windowControls: extra.windowControls
   });
 };

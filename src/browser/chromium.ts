@@ -1,4 +1,5 @@
 import StartBrowser from '../launcher/start';
+import FluxStackDesktopConfig from '../../config';
 
 interface BrowserConfig {
   browserName: string;
@@ -27,14 +28,50 @@ export default async (
   { browserName, browserPath, dataPath, onBrowserExit, customArgs = [] }: BrowserConfig,
   { url, windowSize }: WindowConfig
 ) => {
-  const args: string[] = [
+  // Build base args
+  const baseArgs = [
     `--app=${url}`,
     `--remote-debugging-pipe`,
     `--user-data-dir=${dataPath}`,
     windowSize ? `--window-size=${windowSize.join(',')}` : '',
-    ...`--new-window --disable-extensions --disable-default-apps --disable-breakpad --disable-crashpad --disable-background-networking --disable-domain-reliability --disable-component-update --disable-sync --disable-features=AutofillServerCommunication ${presets.perf}`.split(' '),
+    ...`--new-window --disable-extensions --disable-default-apps --disable-breakpad --disable-crashpad --disable-background-networking --disable-domain-reliability --disable-component-update --disable-sync --disable-features=AutofillServerCommunication ${presets.perf}`.split(' ')
+  ];
+
+  // Window control flags based on config
+  const windowControlArgs: string[] = [];
+
+  // Kiosk mode (overrides all other window settings)
+  if (FluxStackDesktopConfig.kioskMode) {
+    windowControlArgs.push('--kiosk');
+    windowControlArgs.push('--kiosk-printing');
+  } else {
+    // Frameless window
+    if (FluxStackDesktopConfig.frameless) {
+      // Note: Chromium doesn't have a direct --frameless flag
+      // This needs to be handled at the OS window manager level
+      // or via custom window chrome in the app itself
+      log('Frameless mode requested (requires custom implementation)');
+    }
+  }
+
+  const args: string[] = [
+    ...baseArgs,
+    ...windowControlArgs,
     ...customArgs // Add custom arguments at the end (so they can override defaults)
   ].filter(Boolean);
 
-  return await StartBrowser(browserPath, args, 'websocket', { browserName, onBrowserExit });
+  // Pass window control config to be injected
+  return await StartBrowser(browserPath, args, 'websocket', {
+    browserName,
+    onBrowserExit,
+    windowControls: {
+      enableMinimize: FluxStackDesktopConfig.enableMinimizeButton,
+      enableMaximize: FluxStackDesktopConfig.enableMaximizeButton,
+      enableClose: FluxStackDesktopConfig.enableCloseButton,
+      disableContextMenu: FluxStackDesktopConfig.disableContextMenu,
+      resizable: FluxStackDesktopConfig.resizable,
+      kioskMode: FluxStackDesktopConfig.kioskMode,
+      frameless: FluxStackDesktopConfig.frameless
+    }
+  });
 };
