@@ -107,20 +107,30 @@ function Modify-WindowStyle {
 
         Write-Host "Found window: $title (HWND: $hwnd, PID: $($window.Id))"
 
-        # METHOD 1: Modify window style
+        # Get current style
         $currentStyle = [WindowAPI]::GetWindowLong($hwnd, [WindowAPI]::GWL_STYLE)
         $newStyle = $currentStyle
 
         Write-Host "Current style: 0x$($currentStyle.ToString('X8'))"
 
-        if (-not $EnableMinimize) {
-            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MINIMIZEBOX)
-            Write-Host "Removing WS_MINIMIZEBOX"
-        }
+        # METHOD 1: Remove WS_SYSMENU completely if minimize/maximize are disabled
+        # This is more aggressive but actually works with Chrome/Edge --app mode
+        $removeSystemMenu = (-not $EnableMinimize) -or (-not $EnableMaximize)
 
-        if (-not $EnableMaximize) {
-            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MAXIMIZEBOX)
-            Write-Host "Removing WS_MAXIMIZEBOX"
+        if ($removeSystemMenu) {
+            Write-Host "Removing WS_SYSMENU (system menu) to disable minimize/maximize buttons"
+            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_SYSMENU)
+        } else {
+            # Only remove individual flags if system menu stays
+            if (-not $EnableMinimize) {
+                $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MINIMIZEBOX)
+                Write-Host "Removing WS_MINIMIZEBOX"
+            }
+
+            if (-not $EnableMaximize) {
+                $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MAXIMIZEBOX)
+                Write-Host "Removing WS_MAXIMIZEBOX"
+            }
         }
 
         if (-not $Resizable) {
@@ -137,46 +147,6 @@ function Modify-WindowStyle {
             [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
 
         Write-Host "New style: 0x$($newStyle.ToString('X8'))"
-
-        # METHOD 2: Disable system menu items (MORE AGGRESSIVE)
-        Write-Host "METHOD 2: Attempting to modify system menu..."
-        try {
-            $hMenu = [WindowAPI]::GetSystemMenu($hwnd, $false)
-            Write-Host "GetSystemMenu returned: $hMenu"
-
-            if ($hMenu -ne [IntPtr]::Zero) {
-                Write-Host "System menu handle is valid, disabling items..."
-
-                if (-not $EnableMinimize) {
-                    $result1 = [WindowAPI]::EnableMenuItem($hMenu, 0xF020, 0x00000001)  # SC_MINIMIZE
-                    $result2 = [WindowAPI]::DeleteMenu($hMenu, 0xF020, 0x00000000)
-                    Write-Host "- Minimize: EnableMenuItem=$result1, DeleteMenu=$result2"
-                }
-
-                if (-not $EnableMaximize) {
-                    $result1 = [WindowAPI]::EnableMenuItem($hMenu, 0xF030, 0x00000001)  # SC_MAXIMIZE
-                    $result2 = [WindowAPI]::DeleteMenu($hMenu, 0xF030, 0x00000000)
-                    Write-Host "- Maximize: EnableMenuItem=$result1, DeleteMenu=$result2"
-                }
-
-                if (-not $Resizable) {
-                    $result1 = [WindowAPI]::EnableMenuItem($hMenu, 0xF000, 0x00000001)  # SC_SIZE
-                    $result2 = [WindowAPI]::DeleteMenu($hMenu, 0xF000, 0x00000000)
-                    Write-Host "- Resize: EnableMenuItem=$result1, DeleteMenu=$result2"
-                }
-
-                # Force redraw menu
-                $drawResult = [WindowAPI]::DrawMenuBar($hwnd)
-                Write-Host "DrawMenuBar result: $drawResult"
-                Write-Host "System menu modifications applied"
-            } else {
-                Write-Host "System menu handle is NULL - window might not have a system menu"
-            }
-        } catch {
-            Write-Host "ERROR modifying system menu: $_"
-            Write-Host "Exception details: $($_.Exception.Message)"
-        }
-
         Write-Host "Applied window modifications successfully"
     }
 }
