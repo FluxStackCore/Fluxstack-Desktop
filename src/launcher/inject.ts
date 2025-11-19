@@ -1,6 +1,7 @@
 import { ChildProcess } from 'node:child_process';
 import IPCApi from '../lib/ipc';
 import { generateWindowControlsScript, setupWindowControlHandlers, type WindowControlsConfig } from '../lib/window-controls';
+import { applyNativeWindowControls } from '../lib/native-window-controls';
 
 interface InjectCDPMessage {
   method: string;
@@ -191,6 +192,14 @@ export default async (
 
     // Setup backend IPC handlers
     setupWindowControlHandlers(browserInstance, windowControls);
+
+    // Apply NATIVE window controls (OS-level, not just JavaScript)
+    // This modifies the actual window buttons using Windows API (or equivalent on other OS)
+    if (!windowControls.kioskMode) {  // Kiosk mode already handles this via --kiosk flag
+      applyNativeWindowControls(proc, windowControls, browserName).catch(err => {
+        console.warn('[FluxDesktop] Could not apply native window controls:', err.message);
+      });
+    }
 
     console.log('✅ Window controls initialized');
   }

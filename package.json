@@ -45,7 +45,10 @@
   "homepage": "https://github.com/MarcosBrendonDePaula/FluxStack#readme",
   "type": "module",
   "peerDependencies": {},
-  "dependencies": {},
+  "dependencies": {
+    "node-window-manager": "^2.2.4",
+    "win32-api": "^26.1.2"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "bun-types": "^1.0.0",

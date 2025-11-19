@@ -4,6 +4,10 @@
   "workspaces": {
     "": {
       "name": "@fluxstack/desktop",
+      "dependencies": {
+        "node-window-manager": "^2.2.4",
+        "win32-api": "^26.1.2",
+      },
       "devDependencies": {
         "@types/node": "^20.0.0",
         "bun-types": "^1.0.0",
@@ -19,12 +23,30 @@
 
     "@types/react": ["@types/react@19.2.5", "", { "dependencies": { "csstype": "^3.0.2" } }, "sha512-keKxkZMqnDicuvFoJbzrhbtdLSPhj/rZThDlKWCDbgXmUg0rEUFtRssDXKYmtXluZlIqiC5VqkCgRwzuyLHKHw=="],
 
+    "@waiting/shared-types": ["@waiting/shared-types@23.24.0", "", {}, "sha512-E7U3ulMbHiT05Jd8RlepovGeixCQMAdJMkGE83s/JMtCOx0n02Ss7OURLVgV+j06SeHZ52wCBoHfriqlW6Pa3w=="],
+
     "bun-types": ["bun-types@1.3.2", "", { "dependencies": { "@types/node": "*" }, "peerDependencies": { "@types/react": "^19" } }, "sha512-i/Gln4tbzKNuxP70OWhJRZz1MRfvqExowP7U6JKoI8cntFrtxg7RJK3jvz7wQW54UuvNC8tbKHHri5fy74FVqg=="],
 
     "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
 
+    "extract-file-icon": ["extract-file-icon@0.3.2", "", { "dependencies": { "node-addon-api": "1.7.1" } }, "sha512-We5/HaMDlioOx3c9zDjit8RtKWEvT94sJF8jTujaKVOyWL8Kkqu4QGnwDr5fID6XsbKvWT0JJNuWuV2Tmr7yiw=="],
+
+    "koffi": ["koffi@2.14.1", "", {}, "sha512-IMFL3IbRDXacSIjs7pPbPxgNlJ2hUtawQXU2QPdr6iw38jmv5AesAUG8HPX00xl0PPA2BbEa3noTw1YdHY+gHg=="],
+
+    "node-addon-api": ["node-addon-api@2.0.0", "", {}, "sha512-ASCL5U13as7HhOExbT6OlWJJUV/lLzL2voOSP1UVehpRD8FbSrSDjfScK/KwAvVTI5AS6r4VwbOMlIqtvRidnA=="],
+
+    "node-gyp-build": ["node-gyp-build@4.8.4", "", { "bin": { "node-gyp-build": "bin.js", "node-gyp-build-optional": "optional.js", "node-gyp-build-test": "build-test.js" } }, "sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ=="],
+
+    "node-window-manager": ["node-window-manager@2.2.4", "", { "dependencies": { "extract-file-icon": "^0.3.2", "node-addon-api": "2.0.0", "node-gyp-build": "^4.2.1" } }, "sha512-Dgq9a7qx6+Gi+BifWM79leteNz76QUtwSsdiqEe7SjvoJsc8TYQsRl1IA5uxqz5iSLeHS1iA/8YI/snoq0DblA=="],
+
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
+    "win32-api": ["win32-api@26.1.2", "", { "dependencies": { "win32-def": "^26.1.2" } }, "sha512-6pFihEkolpU8PIPk3pbBa/Wn2S9esHAbRrlvRObKRARMdXb2dpe50J5FRApOhK8HCbyI4/uS6qtxZ/hKpr+8Kw=="],
+
+    "win32-def": ["win32-def@26.1.2", "", { "dependencies": { "@waiting/shared-types": "^23.24.0", "koffi": "^2.9.2" } }, "sha512-vk65D1jZt6t0cTpP8fdUPbHobneOKPyYpk8ADIjUTq4aDkfNiHtbIAPqz/bqYABFZqRU7NCREqf5v7EOz3lstg=="],
+
+    "extract-file-icon/node-addon-api": ["node-addon-api@1.7.1", "", {}, "sha512-2+DuKodWvwRTrCfKOeR24KIc5unKjOh8mz17NCzVnHWfjAdDqbfbjqh7gUT+BkXBRQM52+xCHciKWonJ3CbJMQ=="],
   }
 }
