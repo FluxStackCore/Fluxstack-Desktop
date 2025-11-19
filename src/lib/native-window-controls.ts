@@ -47,6 +47,18 @@ public class WindowAPI {
     [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
+
+    [DllImport("user32.dll")]
+    public static extern bool DeleteMenu(IntPtr hMenu, uint uPosition, uint uFlags);
+
+    [DllImport("user32.dll")]
+    public static extern bool DrawMenuBar(IntPtr hWnd);
+
     public const int GWL_STYLE = -16;
     public const int WS_MINIMIZEBOX = 0x00020000;
     public const int WS_MAXIMIZEBOX = 0x00010000;
@@ -56,6 +68,8 @@ public class WindowAPI {
     public const uint SWP_NOMOVE = 0x0002;
     public const uint SWP_NOZORDER = 0x0004;
     public const uint SWP_FRAMECHANGED = 0x0020;
+    public const uint MF_BYCOMMAND = 0x00000000;
+    public const uint MF_GRAYED = 0x00000001;
 }
 "@
 
@@ -67,26 +81,38 @@ function Modify-WindowStyle {
         [bool]$Resizable = $true
     )
 
-    # Find all windows
-    $windows = Get-Process | Where-Object { $_.Id -eq $ProcessId -and $_.MainWindowHandle -ne 0 }
+    # Find ALL processes with this PID and any related processes (Edge is multi-process)
+    $processes = Get-Process | Where-Object {
+        ($_.Id -eq $ProcessId -or $_.ProcessName -like "*msedge*" -or $_.ProcessName -like "*chrome*") -and
+        $_.MainWindowHandle -ne 0
+    }
 
-    foreach ($window in $windows) {
+    if ($processes.Count -eq 0) {
+        Write-Host "Window not found for process $ProcessId"
+        return
+    }
+
+    foreach ($window in $processes) {
         $hwnd = $window.MainWindowHandle
 
         if ($hwnd -eq 0) {
-            Write-Host "Window not found for process $ProcessId"
             continue
         }
 
-        Write-Host "Found window: $($window.MainWindowTitle) (HWND: $hwnd)"
+        # Skip if window title is empty (renderer processes)
+        $title = $window.MainWindowTitle
+        if ([string]::IsNullOrWhiteSpace($title)) {
+            continue
+        }
 
-        # Get current style
+        Write-Host "Found window: $title (HWND: $hwnd, PID: $($window.Id))"
+
+        # METHOD 1: Modify window style
         $currentStyle = [WindowAPI]::GetWindowLong($hwnd, [WindowAPI]::GWL_STYLE)
         $newStyle = $currentStyle
 
         Write-Host "Current style: 0x$($currentStyle.ToString('X8'))"
 
-        # Modify style based on parameters
         if (-not $EnableMinimize) {
             $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MINIMIZEBOX)
             Write-Host "Removing WS_MINIMIZEBOX"
@@ -111,6 +137,39 @@ function Modify-WindowStyle {
             [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
 
         Write-Host "New style: 0x$($newStyle.ToString('X8'))"
+
+        # METHOD 2: Disable system menu items (MORE AGGRESSIVE)
+        try {
+            $hMenu = [WindowAPI]::GetSystemMenu($hwnd, $false)
+
+            if ($hMenu -ne [IntPtr]::Zero) {
+                Write-Host "Disabling system menu items..."
+
+                if (-not $EnableMinimize) {
+                    [WindowAPI]::EnableMenuItem($hMenu, 0xF020, 0x00000001) | Out-Null  # SC_MINIMIZE
+                    [WindowAPI]::DeleteMenu($hMenu, 0xF020, 0x00000000) | Out-Null
+                    Write-Host "- Disabled minimize in system menu"
+                }
+
+                if (-not $EnableMaximize) {
+                    [WindowAPI]::EnableMenuItem($hMenu, 0xF030, 0x00000001) | Out-Null  # SC_MAXIMIZE
+                    [WindowAPI]::DeleteMenu($hMenu, 0xF030, 0x00000000) | Out-Null
+                    Write-Host "- Disabled maximize in system menu"
+                }
+
+                if (-not $Resizable) {
+                    [WindowAPI]::EnableMenuItem($hMenu, 0xF000, 0x00000001) | Out-Null  # SC_SIZE
+                    [WindowAPI]::DeleteMenu($hMenu, 0xF000, 0x00000000) | Out-Null
+                    Write-Host "- Disabled resize in system menu"
+                }
+
+                # Force redraw menu
+                [WindowAPI]::DrawMenuBar($hwnd) | Out-Null
+            }
+        } catch {
+            Write-Host "Warning: Could not modify system menu: $_"
+        }
+
         Write-Host "Applied window modifications successfully"
     }
 }
