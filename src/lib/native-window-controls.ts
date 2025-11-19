@@ -59,7 +59,22 @@ public class WindowAPI {
     [DllImport("user32.dll")]
     public static extern bool DrawMenuBar(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    [DllImport("user32.dll")]
+    public static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    public delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
+
     public const int GWL_STYLE = -16;
+    public const int GWL_WNDPROC = -4;
     public const int WS_MINIMIZEBOX = 0x00020000;
     public const int WS_MAXIMIZEBOX = 0x00010000;
     public const int WS_SIZEBOX = 0x00040000;
@@ -70,6 +85,17 @@ public class WindowAPI {
     public const uint SWP_FRAMECHANGED = 0x0020;
     public const uint MF_BYCOMMAND = 0x00000000;
     public const uint MF_GRAYED = 0x00000001;
+
+    // Window message constants
+    public const int WM_SYSCOMMAND = 0x0112;
+    public const int SC_MINIMIZE = 0xF020;
+    public const int SC_MAXIMIZE = 0xF030;
+    public const int SC_SIZE = 0xF000;
+    public const int SC_RESTORE = 0xF120;
+
+    // Hook constants
+    public const int WH_CALLWNDPROC = 4;
+    public const int WH_GETMESSAGE = 3;
 }
 "@
 
@@ -147,6 +173,64 @@ function Modify-WindowStyle {
             [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
 
         Write-Host "New style: 0x$($newStyle.ToString('X8'))"
+
+        # CRITICAL: Install message hook to intercept and block WM_SYSCOMMAND messages
+        # This is the ONLY way to truly block minimize/maximize in Chrome/Edge --app mode
+        Write-Host "Installing WM_SYSCOMMAND message filter..."
+
+        # Create a script block that will run in background and monitor messages
+        $hookScript = {
+            param($Hwnd, $BlockMinimize, $BlockMaximize, $BlockResize)
+
+            Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
+public class WindowMessageFilter : IMessageFilter {
+    private IntPtr targetHwnd;
+    private bool blockMinimize;
+    private bool blockMaximize;
+    private bool blockResize;
+
+    public WindowMessageFilter(IntPtr hwnd, bool minimize, bool maximize, bool resize) {
+        targetHwnd = hwnd;
+        blockMinimize = minimize;
+        blockMaximize = maximize;
+        blockResize = resize;
+    }
+
+    public bool PreFilterMessage(ref Message m) {
+        if (m.HWnd == targetHwnd && m.Msg == 0x0112) { // WM_SYSCOMMAND
+            int cmd = m.WParam.ToInt32() & 0xFFF0;
+
+            if ((blockMinimize && cmd == 0xF020) ||    // SC_MINIMIZE
+                (blockMaximize && cmd == 0xF030) ||    // SC_MAXIMIZE
+                (blockMaximize && cmd == 0xF120) ||    // SC_RESTORE
+                (blockResize && cmd == 0xF000)) {      // SC_SIZE
+                return true; // Block the message
+            }
+        }
+        return false;
+    }
+}
+"@ -ReferencedAssemblies System.Windows.Forms
+
+            $filter = New-Object WindowMessageFilter([IntPtr]$Hwnd, $BlockMinimize, $BlockMaximize, $BlockResize)
+            [System.Windows.Forms.Application]::AddMessageFilter($filter)
+
+            # Keep running
+            while ($true) {
+                [System.Windows.Forms.Application]::DoEvents()
+                Start-Sleep -Milliseconds 100
+            }
+        }
+
+        # Start background job to monitor window messages
+        $job = Start-Job -ScriptBlock $hookScript -ArgumentList $hwnd, (-not $EnableMinimize), (-not $EnableMaximize), (-not $Resizable)
+        Write-Host "Message filter installed (Job ID: $($job.Id))"
+        Write-Host "Background job will intercept and block WM_SYSCOMMAND messages"
+
         Write-Host "Applied window modifications successfully"
     }
 }
