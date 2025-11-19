@@ -1,9 +1,18 @@
 {
   "name": "@fluxstack/desktop",
   "version": "1.0.0",
-  "description": "FluxStack Desktop - Create native desktop applications from web apps using system browsers and Bun runtime.",
+  "author": "FluxStack Team",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MarcosBrendonDePaula/FluxStack.git"
+  },
   "main": "index.ts",
-  "types": "index.ts",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "bun-types": "^1.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {},
   "exports": {
     ".": {
       "import": "./index.ts",
@@ -18,45 +27,10 @@
       "types": "./src/index.ts"
     }
   },
-  "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "test": "bun test",
-    "build": "bun build src/index.ts --outdir dist --target bun --sourcemap",
-    "typecheck": "tsc --noEmit",
-    "example": "bun run example.ts"
-  },
-  "keywords": [
-    "fluxstack",
-    "plugin",
-    "desktop",
-    "browser",
-    "electron-alternative",
-    "typescript"
-  ],
-  "author": "FluxStack Team",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MarcosBrendonDePaula/FluxStack.git"
-  },
   "bugs": {
     "url": "https://github.com/MarcosBrendonDePaula/FluxStack/issues"
   },
-  "homepage": "https://github.com/MarcosBrendonDePaula/FluxStack#readme",
-  "type": "module",
-  "peerDependencies": {},
-  "dependencies": {
-    "node-window-manager": "^2.2.4",
-    "win32-api": "^26.1.2"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "bun-types": "^1.0.0",
-    "typescript": "^5.0.0"
-  },
-  "trustedDependencies": [
-    "bun-types"
-  ],
+  "description": "FluxStack Desktop - Create native desktop applications from web apps using system browsers and Bun runtime.",
   "fluxstack": {
     "plugin": true,
     "version": "^1.0.0",
@@ -66,5 +40,27 @@
     ],
     "category": "desktop",
     "tags": ["desktop", "browser", "electron-alternative"]
-  }
+  },
+  "homepage": "https://github.com/MarcosBrendonDePaula/FluxStack#readme",
+  "keywords": [
+    "fluxstack",
+    "plugin",
+    "desktop",
+    "browser",
+    "electron-alternative",
+    "typescript"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test",
+    "build": "bun build src/index.ts --outdir dist --target bun --sourcemap",
+    "typecheck": "tsc --noEmit",
+    "example": "bun run example.ts"
+  },
+  "trustedDependencies": [
+    "bun-types"
+  ],
+  "type": "module",
+  "types": "index.ts"
 }

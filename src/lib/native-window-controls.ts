@@ -1,13 +1,15 @@
 /**
- * Native Window Controls
- * Uses OS-native APIs to control window buttons (minimize, maximize, close, resize)
+ * Native Window Controls - Bun Compatible Version
+ * Uses PowerShell and Windows API without native Node.js bindings
  *
- * This is required because Chromium doesn't have command-line flags to disable
- * window controls. We need to modify the window after it's created using OS APIs.
+ * This approach works with Bun by using child_process to execute
+ * PowerShell scripts that modify window properties directly.
  */
 
-import { windowManager, Window } from 'node-window-manager';
-import { ChildProcess } from 'node:child_process';
+import { spawn, exec } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execAsync = promisify(exec);
 
 export interface WindowControlsConfig {
   enableMinimize: boolean;
@@ -20,183 +22,170 @@ export interface WindowControlsConfig {
 }
 
 /**
- * Apply window controls to a browser process window
- * This finds the window created by the process and modifies its native properties
+ * PowerShell script to modify window styles
+ * This uses Windows API via C# code executed in PowerShell
+ */
+const POWERSHELL_WINDOW_MODIFIER = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+
+public class WindowAPI {
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    public const int GWL_STYLE = -16;
+    public const int WS_MINIMIZEBOX = 0x00020000;
+    public const int WS_MAXIMIZEBOX = 0x00010000;
+    public const int WS_SIZEBOX = 0x00040000;
+    public const int WS_SYSMENU = 0x00080000;
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_NOZORDER = 0x0004;
+    public const uint SWP_FRAMECHANGED = 0x0020;
+}
+"@
+
+function Modify-WindowStyle {
+    param(
+        [int]$ProcessId,
+        [bool]$EnableMinimize = $true,
+        [bool]$EnableMaximize = $true,
+        [bool]$Resizable = $true
+    )
+
+    # Find all windows
+    $windows = Get-Process | Where-Object { $_.Id -eq $ProcessId -and $_.MainWindowHandle -ne 0 }
+
+    foreach ($window in $windows) {
+        $hwnd = $window.MainWindowHandle
+
+        if ($hwnd -eq 0) {
+            Write-Host "Window not found for process $ProcessId"
+            continue
+        }
+
+        Write-Host "Found window: $($window.MainWindowTitle) (HWND: $hwnd)"
+
+        # Get current style
+        $currentStyle = [WindowAPI]::GetWindowLong($hwnd, [WindowAPI]::GWL_STYLE)
+        $newStyle = $currentStyle
+
+        Write-Host "Current style: 0x$($currentStyle.ToString('X8'))"
+
+        # Modify style based on parameters
+        if (-not $EnableMinimize) {
+            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MINIMIZEBOX)
+            Write-Host "Removing WS_MINIMIZEBOX"
+        }
+
+        if (-not $EnableMaximize) {
+            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MAXIMIZEBOX)
+            Write-Host "Removing WS_MAXIMIZEBOX"
+        }
+
+        if (-not $Resizable) {
+            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_SIZEBOX)
+            Write-Host "Removing WS_SIZEBOX"
+        }
+
+        # Apply new style
+        $result = [WindowAPI]::SetWindowLong($hwnd, [WindowAPI]::GWL_STYLE, $newStyle)
+
+        # Force redraw
+        [WindowAPI]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0,
+            [WindowAPI]::SWP_NOSIZE -bor [WindowAPI]::SWP_NOMOVE -bor
+            [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
+
+        Write-Host "New style: 0x$($newStyle.ToString('X8'))"
+        Write-Host "Applied window modifications successfully"
+    }
+}
+`;
+
+/**
+ * Apply window controls to a browser process window using PowerShell
  */
 export async function applyNativeWindowControls(
-  proc: ChildProcess,
+  proc: { pid?: number; killed?: boolean },
   config: WindowControlsConfig,
   browserName: string
 ): Promise<void> {
+  if (process.platform !== 'win32') {
+    console.warn('[FluxDesktop] Native window controls only supported on Windows');
+    console.warn('[FluxDesktop] For Linux, use: wmctrl, xdotool, or xprop');
+    console.warn('[FluxDesktop] For macOS, use: AppleScript or Hammerspoon');
+    return;
+  }
+
   if (!proc.pid) {
     console.warn('[FluxDesktop] Cannot apply window controls: no process PID');
     return;
   }
 
-  // Wait for window to be created (Chromium takes some time to create the window)
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Wait for window to be created (browser needs time to spawn window)
+  console.log(`[FluxDesktop] Waiting for browser window to be created (PID: ${proc.pid})...`);
+  await new Promise(resolve => setTimeout(resolve, 2000));
 
   try {
-    // Try to find the window by process ID
-    let browserWindow: Window | null = null;
-
-    // Try multiple times (window might take time to appear)
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const windows = windowManager.getWindows();
-
-      // Find window by process ID
-      browserWindow = windows.find(win => {
-        try {
-          return win.processId === proc.pid;
-        } catch (err) {
-          return false;
-        }
-      }) || null;
-
-      if (browserWindow) {
-        break;
-      }
-
-      // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    if (!browserWindow) {
-      console.warn('[FluxDesktop] Could not find browser window to apply controls');
-      return;
-    }
-
-    console.log(`[FluxDesktop] Found browser window: "${browserWindow.getTitle()}" (PID: ${proc.pid})`);
-
-    // Apply window control configurations
     const modifications: string[] = [];
 
-    // Resizable
-    if (!config.resizable) {
-      try {
-        browserWindow.setResizable(false);
-        modifications.push('resizable=false');
-      } catch (err) {
-        console.warn('[FluxDesktop] Could not disable resizing:', err);
-      }
-    }
+    if (!config.enableMinimize) modifications.push('minimize=OFF');
+    if (!config.enableMaximize) modifications.push('maximize=OFF');
+    if (!config.resizable) modifications.push('resizable=OFF');
 
-    // Note: node-window-manager doesn't have direct methods for minimize/maximize/close buttons
-    // These need to be done via platform-specific APIs (Windows API, X11, etc.)
-    // On Windows, this requires SetWindowLong with GWL_STYLE
-
-    if (modifications.length > 0) {
-      console.log(`[FluxDesktop] Applied native window controls: ${modifications.join(', ')}`);
-    }
-
-    // For Windows-specific controls, we need to use Windows API directly
-    if (process.platform === 'win32') {
-      await applyWindowsSpecificControls(browserWindow, config);
-    } else {
-      console.warn('[FluxDesktop] Native window control modification is only fully supported on Windows');
-      console.warn('[FluxDesktop] For Linux/macOS, use window manager tools (wmctrl, xdotool, etc.)');
-    }
-
-  } catch (error) {
-    console.error('[FluxDesktop] Error applying native window controls:', error);
-  }
-}
-
-/**
- * Apply Windows-specific window controls using Win32 API
- * This uses Windows API to modify window styles (WS_MINIMIZEBOX, WS_MAXIMIZEBOX, etc.)
- */
-async function applyWindowsSpecificControls(
-  browserWindow: Window,
-  config: WindowControlsConfig
-): Promise<void> {
-  try {
-    // Dynamic import for Windows-only module
-    const { user32, windef } = await import('win32-api');
-    const { U } = user32;
-
-    // Get all windows and find HWND by title (node-window-manager limitation)
-    const title = browserWindow.getTitle();
-    const hwnd = U.FindWindowExW(null, null, null, title);
-
-    if (!hwnd || hwnd === 0) {
-      console.warn('[FluxDesktop] Could not get window handle (HWND)');
+    if (modifications.length === 0) {
+      console.log('[FluxDesktop] No window control restrictions to apply');
       return;
     }
 
-    console.log('[FluxDesktop] Got window handle (HWND):', hwnd);
+    console.log(`[FluxDesktop] Applying native window controls: ${modifications.join(', ')}`);
 
-    // Windows style constants
-    const GWL_STYLE = -16;
-    const WS_MINIMIZEBOX = 0x00020000;
-    const WS_MAXIMIZEBOX = 0x00010000;
-    const WS_SIZEBOX = 0x00040000;  // Resizable border
-    const WS_SYSMENU = 0x00080000;  // System menu (includes close button)
+    // Build PowerShell command
+    const psCommand = `
+      ${POWERSHELL_WINDOW_MODIFIER}
 
-    // Get current window style
-    let style = U.GetWindowLongW(hwnd, GWL_STYLE);
+      Modify-WindowStyle -ProcessId ${proc.pid} ` +
+      `-EnableMinimize $${config.enableMinimize} ` +
+      `-EnableMaximize $${config.enableMaximize} ` +
+      `-Resizable $${config.resizable}
+    `;
 
-    if (!style) {
-      console.warn('[FluxDesktop] Could not get window style');
-      return;
-    }
-
-    console.log('[FluxDesktop] Current window style:', style.toString(16));
-
-    const modifications: string[] = [];
-
-    // Modify minimize button
-    if (!config.enableMinimize) {
-      style = style & ~WS_MINIMIZEBOX;
-      modifications.push('minimize=OFF');
-    }
-
-    // Modify maximize button
-    if (!config.enableMaximize) {
-      style = style & ~WS_MAXIMIZEBOX;
-      modifications.push('maximize=OFF');
-    }
-
-    // Modify resizable border
-    if (!config.resizable) {
-      style = style & ~WS_SIZEBOX;
-      modifications.push('resizable=OFF');
-    }
-
-    // Close button is part of WS_SYSMENU, but removing it removes the entire system menu
-    // So we can't easily disable just the close button without custom implementation
-    if (!config.enableClose) {
-      // style = style & ~WS_SYSMENU;  // This would remove the entire title bar menu
-      console.warn('[FluxDesktop] Disabling close button requires removing system menu (not recommended)');
-      modifications.push('close=SKIP (would remove entire system menu)');
-    }
-
-    // Apply the new style
-    const result = U.SetWindowLongW(hwnd, GWL_STYLE, style);
-
-    if (!result && modifications.length > 0) {
-      console.warn('[FluxDesktop] SetWindowLong returned 0, style might not have changed');
-    }
-
-    // Force window to redraw with new style
-    U.SetWindowPos(
-      hwnd,
-      null,
-      0, 0, 0, 0,
-      0x0001 | 0x0002 | 0x0004 | 0x0020  // SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED
+    // Execute PowerShell
+    const { stdout, stderr } = await execAsync(
+      `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/"/g, '\\"')}"`,
+      { timeout: 10000 }
     );
 
-    if (modifications.length > 0) {
-      console.log(`[FluxDesktop] ✅ Applied Windows native controls: ${modifications.join(', ')}`);
+    if (stdout) {
+      console.log('[FluxDesktop] PowerShell output:', stdout.trim());
     }
 
-    // Verify the change
-    const newStyle = U.GetWindowLongW(hwnd, GWL_STYLE);
-    console.log('[FluxDesktop] New window style:', newStyle.toString(16));
+    if (stderr) {
+      console.warn('[FluxDesktop] PowerShell warnings:', stderr.trim());
+    }
 
-  } catch (error) {
-    console.error('[FluxDesktop] Error applying Windows-specific controls:', error);
-    console.error('[FluxDesktop] win32-api might not be available or not on Windows platform');
+    console.log('[FluxDesktop] ✅ Native window controls applied successfully');
+
+  } catch (error: any) {
+    console.error('[FluxDesktop] Failed to apply native window controls:', error.message);
+
+    if (error.message.includes('powershell.exe')) {
+      console.error('[FluxDesktop] PowerShell not found. Make sure you are running on Windows.');
+    }
   }
 }
 
@@ -205,26 +194,18 @@ async function applyWindowsSpecificControls(
  * Some applications might reset window styles, so we monitor and reapply
  */
 export function monitorWindowControls(
-  proc: ChildProcess,
+  proc: { pid?: number; killed?: boolean; exitCode?: number | null },
   config: WindowControlsConfig,
   browserName: string
 ): void {
-  if (!config.resizable && !config.enableMinimize && !config.enableMaximize) {
-    // No monitoring needed if no restrictions
-    return;
+  if (!config.resizable || !config.enableMinimize || !config.enableMaximize) {
+    // Re-apply controls every 10 seconds
+    const interval = setInterval(async () => {
+      if (!proc.killed && proc.exitCode === null) {
+        await applyNativeWindowControls(proc, config, browserName);
+      } else {
+        clearInterval(interval);
+      }
+    }, 10000);
   }
-
-  // Re-apply controls every 5 seconds
-  const interval = setInterval(async () => {
-    if (!proc.killed && proc.exitCode === null) {
-      await applyNativeWindowControls(proc, config, browserName);
-    } else {
-      clearInterval(interval);
-    }
-  }, 5000);
-
-  // Clean up on process exit
-  proc.on('exit', () => {
-    clearInterval(interval);
-  });
 }
