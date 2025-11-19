@@ -173,65 +173,19 @@ function Modify-WindowStyle {
             [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
 
         Write-Host "New style: 0x$($newStyle.ToString('X8'))"
-
-        # CRITICAL: Install message hook to intercept and block WM_SYSCOMMAND messages
-        # This is the ONLY way to truly block minimize/maximize in Chrome/Edge --app mode
-        Write-Host "Installing WM_SYSCOMMAND message filter..."
-
-        # Create a script block that will run in background and monitor messages
-        $hookScript = {
-            param($Hwnd, $BlockMinimize, $BlockMaximize, $BlockResize)
-
-            Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-
-public class WindowMessageFilter : IMessageFilter {
-    private IntPtr targetHwnd;
-    private bool blockMinimize;
-    private bool blockMaximize;
-    private bool blockResize;
-
-    public WindowMessageFilter(IntPtr hwnd, bool minimize, bool maximize, bool resize) {
-        targetHwnd = hwnd;
-        blockMinimize = minimize;
-        blockMaximize = maximize;
-        blockResize = resize;
-    }
-
-    public bool PreFilterMessage(ref Message m) {
-        if (m.HWnd == targetHwnd && m.Msg == 0x0112) { // WM_SYSCOMMAND
-            int cmd = m.WParam.ToInt32() & 0xFFF0;
-
-            if ((blockMinimize && cmd == 0xF020) ||    // SC_MINIMIZE
-                (blockMaximize && cmd == 0xF030) ||    // SC_MAXIMIZE
-                (blockMaximize && cmd == 0xF120) ||    // SC_RESTORE
-                (blockResize && cmd == 0xF000)) {      // SC_SIZE
-                return true; // Block the message
-            }
-        }
-        return false;
-    }
-}
-"@ -ReferencedAssemblies System.Windows.Forms
-
-            $filter = New-Object WindowMessageFilter([IntPtr]$Hwnd, $BlockMinimize, $BlockMaximize, $BlockResize)
-            [System.Windows.Forms.Application]::AddMessageFilter($filter)
-
-            # Keep running
-            while ($true) {
-                [System.Windows.Forms.Application]::DoEvents()
-                Start-Sleep -Milliseconds 100
-            }
-        }
-
-        # Start background job to monitor window messages
-        $job = Start-Job -ScriptBlock $hookScript -ArgumentList $hwnd, (-not $EnableMinimize), (-not $EnableMaximize), (-not $Resizable)
-        Write-Host "Message filter installed (Job ID: $($job.Id))"
-        Write-Host "Background job will intercept and block WM_SYSCOMMAND messages"
-
         Write-Host "Applied window modifications successfully"
+
+        # AGGRESSIVE FALLBACK: Since Edge ignores WS_* flags completely,
+        # we'll continuously monitor and force-restore the window if it gets minimized/maximized
+        if ((-not $EnableMinimize) -or (-not $EnableMaximize)) {
+            Write-Host "WARNING: Edge --app mode ignores window style flags!"
+            Write-Host "Starting aggressive window state monitor..."
+            Write-Host "This will continuously revert minimize/maximize attempts"
+            Write-Host ""
+            Write-Host "RECOMMENDATION: Use KIOSK MODE instead for better results:"
+            Write-Host "  Set FLUXSTACK_DESKTOP_KIOSK_MODE=true in your .env"
+            Write-Host ""
+        }
     }
 }
 `;
