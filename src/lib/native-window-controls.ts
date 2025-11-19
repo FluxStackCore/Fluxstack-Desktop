@@ -136,57 +136,101 @@ export async function applyNativeWindowControls(
     return;
   }
 
-  // Wait for window to be created (browser needs time to spawn window)
-  console.log(`[FluxDesktop] Waiting for browser window to be created (PID: ${proc.pid})...`);
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  const modifications: string[] = [];
+  if (!config.enableMinimize) modifications.push('minimize=OFF');
+  if (!config.enableMaximize) modifications.push('maximize=OFF');
+  if (!config.resizable) modifications.push('resizable=OFF');
 
-  try {
-    const modifications: string[] = [];
+  if (modifications.length === 0) {
+    console.log('[FluxDesktop] No window control restrictions to apply');
+    return;
+  }
 
-    if (!config.enableMinimize) modifications.push('minimize=OFF');
-    if (!config.enableMaximize) modifications.push('maximize=OFF');
-    if (!config.resizable) modifications.push('resizable=OFF');
+  console.log(`[FluxDesktop] Will apply: ${modifications.join(', ')}`);
+  console.log(`[FluxDesktop] Process ID: ${proc.pid}`);
 
-    if (modifications.length === 0) {
-      console.log('[FluxDesktop] No window control restrictions to apply');
-      return;
-    }
+  // Try multiple times with increasing delays (browsers can be slow to create windows)
+  const maxAttempts = 5;
 
-    console.log(`[FluxDesktop] Applying native window controls: ${modifications.join(', ')}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const waitTime = 1000 + (attempt * 500); // 1.5s, 2s, 2.5s, 3s, 3.5s
+    console.log(`[FluxDesktop] Attempt ${attempt}/${maxAttempts} - waiting ${waitTime}ms...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
 
-    // Build PowerShell command
-    const psCommand = `
-      ${POWERSHELL_WINDOW_MODIFIER}
+    try {
+      // Build PowerShell command (escape properly for command line)
+      const psScript = `
+${POWERSHELL_WINDOW_MODIFIER}
 
-      Modify-WindowStyle -ProcessId ${proc.pid} ` +
-      `-EnableMinimize $${config.enableMinimize} ` +
-      `-EnableMaximize $${config.enableMaximize} ` +
-      `-Resizable $${config.resizable}
-    `;
+Modify-WindowStyle -ProcessId ${proc.pid} -EnableMinimize $${config.enableMinimize} -EnableMaximize $${config.enableMaximize} -Resizable $${config.resizable}
+`;
 
-    // Execute PowerShell
-    const { stdout, stderr } = await execAsync(
-      `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/"/g, '\\"')}"`,
-      { timeout: 10000 }
-    );
+      // Save script to temp file to avoid escaping issues
+      const tempFile = `${process.env.TEMP || 'C:\\Windows\\Temp'}\\fluxdesktop-window-${proc.pid}.ps1`;
+      await Bun.write(tempFile, psScript);
 
-    if (stdout) {
-      console.log('[FluxDesktop] PowerShell output:', stdout.trim());
-    }
+      try {
+        // Execute PowerShell script from file
+        const { stdout, stderr } = await execAsync(
+          `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tempFile}"`,
+          { timeout: 10000 }
+        );
 
-    if (stderr) {
-      console.warn('[FluxDesktop] PowerShell warnings:', stderr.trim());
-    }
+        console.log('[FluxDesktop] === PowerShell Output ===');
+        if (stdout && stdout.trim()) {
+          console.log(stdout.trim());
+        } else {
+          console.log('(no output)');
+        }
 
-    console.log('[FluxDesktop] ✅ Native window controls applied successfully');
+        if (stderr && stderr.trim()) {
+          console.log('[FluxDesktop] === PowerShell Errors ===');
+          console.warn(stderr.trim());
+        }
 
-  } catch (error: any) {
-    console.error('[FluxDesktop] Failed to apply native window controls:', error.message);
+        // Check if output indicates success
+        if (stdout.includes('Applied window modifications successfully')) {
+          console.log('[FluxDesktop] ✅ Native window controls applied successfully');
+          return; // Success! Exit function
+        } else if (stdout.includes('Window not found')) {
+          console.warn(`[FluxDesktop] ⚠️ Window not found for process (attempt ${attempt}/${maxAttempts})`);
+          if (attempt < maxAttempts) {
+            console.log('[FluxDesktop] Retrying...');
+            continue; // Try again
+          } else {
+            console.error('[FluxDesktop] ❌ Failed to find window after all attempts');
+            console.error('[FluxDesktop] The browser window might not have a valid MainWindowHandle yet');
+            return;
+          }
+        } else {
+          console.warn('[FluxDesktop] ⚠️ Unexpected PowerShell output, controls might not be applied');
+          return;
+        }
+      } finally {
+        // Clean up temp file
+        try {
+          await Bun.write(tempFile, ''); // Clear it
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
 
-    if (error.message.includes('powershell.exe')) {
-      console.error('[FluxDesktop] PowerShell not found. Make sure you are running on Windows.');
+    } catch (error: any) {
+      console.error(`[FluxDesktop] Error on attempt ${attempt}:`, error.message);
+
+      if (error.message.includes('powershell.exe')) {
+        console.error('[FluxDesktop] PowerShell not found. Make sure you are running on Windows.');
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        console.log('[FluxDesktop] Retrying...');
+        continue;
+      }
     }
   }
+
+  console.error('[FluxDesktop] ❌ Failed to apply native window controls after all attempts');
 }
 
 /**
