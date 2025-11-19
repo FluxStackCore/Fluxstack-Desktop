@@ -4,7 +4,6 @@
  */
 
 import './types';
-import './types/window';
 
 // Browser instance type from inject.ts
 interface FluxDesktopWindow {
