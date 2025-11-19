@@ -12,13 +12,9 @@ import { promisify } from 'node:util';
 const execAsync = promisify(exec);
 
 export interface WindowControlsConfig {
-  enableMinimize: boolean;
-  enableMaximize: boolean;
-  enableClose: boolean;
   disableContextMenu: boolean;
   resizable: boolean;
   kioskMode: boolean;
-  frameless: boolean;
 }
 
 /**
@@ -102,8 +98,6 @@ public class WindowAPI {
 function Modify-WindowStyle {
     param(
         [int]$ProcessId,
-        [bool]$EnableMinimize = $true,
-        [bool]$EnableMaximize = $true,
         [bool]$Resizable = $true
     )
 
@@ -133,58 +127,29 @@ function Modify-WindowStyle {
 
         Write-Host "Found window: $title (HWND: $hwnd, PID: $($window.Id))"
 
-        # Get current style
-        $currentStyle = [WindowAPI]::GetWindowLong($hwnd, [WindowAPI]::GWL_STYLE)
-        $newStyle = $currentStyle
-
-        Write-Host "Current style: 0x$($currentStyle.ToString('X8'))"
-
-        # METHOD 1: Remove WS_SYSMENU completely if minimize/maximize are disabled
-        # This is more aggressive but actually works with Chrome/Edge --app mode
-        $removeSystemMenu = (-not $EnableMinimize) -or (-not $EnableMaximize)
-
-        if ($removeSystemMenu) {
-            Write-Host "Removing WS_SYSMENU (system menu) to disable minimize/maximize buttons"
-            $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_SYSMENU)
-        } else {
-            # Only remove individual flags if system menu stays
-            if (-not $EnableMinimize) {
-                $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MINIMIZEBOX)
-                Write-Host "Removing WS_MINIMIZEBOX"
-            }
-
-            if (-not $EnableMaximize) {
-                $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_MAXIMIZEBOX)
-                Write-Host "Removing WS_MAXIMIZEBOX"
-            }
-        }
-
         if (-not $Resizable) {
+            # Get current style
+            $currentStyle = [WindowAPI]::GetWindowLong($hwnd, [WindowAPI]::GWL_STYLE)
+            $newStyle = $currentStyle
+
+            Write-Host "Current style: 0x$($currentStyle.ToString('X8'))"
+            Write-Host "Removing WS_SIZEBOX to disable window resizing"
+
+            # Remove resize capability
             $newStyle = $newStyle -band (-bnot [WindowAPI]::WS_SIZEBOX)
-            Write-Host "Removing WS_SIZEBOX"
-        }
 
-        # Apply new style
-        $result = [WindowAPI]::SetWindowLong($hwnd, [WindowAPI]::GWL_STYLE, $newStyle)
+            # Apply new style
+            $result = [WindowAPI]::SetWindowLong($hwnd, [WindowAPI]::GWL_STYLE, $newStyle)
 
-        # Force redraw
-        [WindowAPI]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0,
-            [WindowAPI]::SWP_NOSIZE -bor [WindowAPI]::SWP_NOMOVE -bor
-            [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
+            # Force redraw
+            [WindowAPI]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0,
+                [WindowAPI]::SWP_NOSIZE -bor [WindowAPI]::SWP_NOMOVE -bor
+                [WindowAPI]::SWP_NOZORDER -bor [WindowAPI]::SWP_FRAMECHANGED) | Out-Null
 
-        Write-Host "New style: 0x$($newStyle.ToString('X8'))"
-        Write-Host "Applied window modifications successfully"
-
-        # AGGRESSIVE FALLBACK: Since Edge ignores WS_* flags completely,
-        # we'll continuously monitor and force-restore the window if it gets minimized/maximized
-        if ((-not $EnableMinimize) -or (-not $EnableMaximize)) {
-            Write-Host "WARNING: Edge --app mode ignores window style flags!"
-            Write-Host "Starting aggressive window state monitor..."
-            Write-Host "This will continuously revert minimize/maximize attempts"
-            Write-Host ""
-            Write-Host "RECOMMENDATION: Use KIOSK MODE instead for better results:"
-            Write-Host "  Set FLUXSTACK_DESKTOP_KIOSK_MODE=true in your .env"
-            Write-Host ""
+            Write-Host "New style: 0x$($newStyle.ToString('X8'))"
+            Write-Host "Window resizing disabled successfully"
+        } else {
+            Write-Host "Window resizing is enabled (no changes needed)"
         }
     }
 }
@@ -211,18 +176,14 @@ export async function applyNativeWindowControls(
     return;
   }
 
-  const modifications: string[] = [];
-  if (!config.enableMinimize) modifications.push('minimize=OFF');
-  if (!config.enableMaximize) modifications.push('maximize=OFF');
-  if (!config.resizable) modifications.push('resizable=OFF');
-
-  if (modifications.length === 0) {
-    console.log('[FluxDesktop] No window control restrictions to apply');
+  if (config.resizable) {
+    console.log('[FluxDesktop] Window is resizable - no restrictions to apply');
     return;
   }
 
+  console.log('[FluxDesktop] Will disable window resizing');
+
   if (!silent) {
-    console.log(`[FluxDesktop] Will apply: ${modifications.join(', ')}`);
     console.log(`[FluxDesktop] Process ID: ${proc.pid}`);
   }
 
@@ -242,7 +203,7 @@ export async function applyNativeWindowControls(
       const psScript = `
 ${POWERSHELL_WINDOW_MODIFIER}
 
-Modify-WindowStyle -ProcessId ${proc.pid} -EnableMinimize $${config.enableMinimize} -EnableMaximize $${config.enableMaximize} -Resizable $${config.resizable}
+Modify-WindowStyle -ProcessId ${proc.pid} -Resizable $${config.resizable}
 `;
 
       // Save script to temp file to avoid escaping issues

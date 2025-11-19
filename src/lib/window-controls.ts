@@ -4,13 +4,9 @@
  */
 
 export interface WindowControlsConfig {
-  enableMinimize: boolean;
-  enableMaximize: boolean;
-  enableClose: boolean;
   disableContextMenu: boolean;
   resizable: boolean;
   kioskMode: boolean;
-  frameless: boolean;
 }
 
 /**

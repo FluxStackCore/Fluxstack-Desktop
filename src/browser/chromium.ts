@@ -65,13 +65,9 @@ export default async (
     browserName,
     onBrowserExit,
     windowControls: {
-      enableMinimize: FluxStackDesktopConfig.enableMinimizeButton,
-      enableMaximize: FluxStackDesktopConfig.enableMaximizeButton,
-      enableClose: FluxStackDesktopConfig.enableCloseButton,
       disableContextMenu: FluxStackDesktopConfig.disableContextMenu,
       resizable: FluxStackDesktopConfig.resizable,
-      kioskMode: FluxStackDesktopConfig.kioskMode,
-      frameless: FluxStackDesktopConfig.frameless
+      kioskMode: FluxStackDesktopConfig.kioskMode
     }
   });
 };

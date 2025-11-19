@@ -12,13 +12,9 @@ const portRange: [number, number] = [10000, 60000];
 type Transport = 'websocket' | 'stdio';
 
 interface WindowControlsConfig {
-  enableMinimize: boolean;
-  enableMaximize: boolean;
-  enableClose: boolean;
   disableContextMenu: boolean;
   resizable: boolean;
   kioskMode: boolean;
-  frameless: boolean;
 }
 
 interface ExtraOptions {
