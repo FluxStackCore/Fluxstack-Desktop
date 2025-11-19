@@ -40,10 +40,14 @@ export class FluxStackDesktopPlugin implements FluxStack.Plugin {
   category = 'desktop'
   tags = ['desktop', 'browser', 'electron-alternative']
 
+  context:PluginContext;
+
   /**
    * Setup hook - called when plugin is loaded
    */
   async setup(context: PluginContext): Promise<void> {
+    this.context = context
+
     // Check if plugin is enabled
     if (!FluxStackDesktopConfig.enabled) {
       context.logger.info(`[FluxStack Desktop] Plugin disabled by configuration`)
@@ -54,7 +58,7 @@ export class FluxStackDesktopPlugin implements FluxStack.Plugin {
     context.logger.info(`[FluxStack Desktop] Auto-open: ${FluxStackDesktopConfig.autoOpen}`)
     context.logger.info(`[FluxStack Desktop] Auto-shutdown: ${FluxStackDesktopConfig.autoShutdown}`)
     context.logger.info(`[FluxStack Desktop] Window size: ${FluxStackDesktopConfig.windowWidth}x${FluxStackDesktopConfig.windowHeight}`)
-
+    
     // Store plugin info for display
     if (!(global as any).__fluxstackPlugins) {
       (global as any).__fluxstackPlugins = []
@@ -129,7 +133,7 @@ export class FluxStackDesktopPlugin implements FluxStack.Plugin {
     if (FluxStackDesktopConfig.debug) {
       const userAgent = (context as any).headers?.['user-agent'] || ''
       if (userAgent.includes('Chrome') || userAgent.includes('Firefox') || userAgent.includes('Edge')) {
-        console.debug(`[FluxStack Desktop] Request from desktop browser: ${context.method} ${context.path}`)
+        this.context.logger.debug(`[FluxStack Desktop] Request from desktop browser: ${context.method} ${context.path}`)
       }
     }
   }
@@ -143,7 +147,7 @@ export class FluxStackDesktopPlugin implements FluxStack.Plugin {
     // Optional: Log desktop-related responses if debug is enabled
     const userAgent = (context as any).headers?.['user-agent'] || ''
     if (userAgent.includes('Chrome') || userAgent.includes('Firefox') || userAgent.includes('Edge')) {
-      console.debug(`[FluxStack Desktop] Response to desktop browser: ${context.statusCode} ${context.path}`)
+      this.context.logger.debug(`[FluxStack Desktop] Response to desktop browser: ${context.statusCode} ${context.path}`)
     }
   }
 
@@ -151,7 +155,7 @@ export class FluxStackDesktopPlugin implements FluxStack.Plugin {
    * Error hook - called when errors occur
    */
   async onError?(context: ErrorContext): Promise<void> {
-    console.error(`[FluxStack Desktop] Error:`, context.error)
+    this.context.logger.error(`[FluxStack Desktop] Error:`, context.error)
 
     // Optionally handle desktop-specific errors here
   }
