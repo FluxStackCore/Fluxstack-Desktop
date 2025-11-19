@@ -196,8 +196,26 @@ export default async (
     // Apply NATIVE window controls (OS-level, not just JavaScript)
     // This modifies the actual window buttons using Windows API (or equivalent on other OS)
     if (!windowControls.kioskMode) {  // Kiosk mode already handles this via --kiosk flag
+      // Apply immediately
       applyNativeWindowControls(proc, windowControls, browserName).catch(err => {
         console.warn('[FluxDesktop] Could not apply native window controls:', err.message);
+      });
+
+      // Monitor and reapply every 2 seconds (browsers can reset window styles)
+      console.log('[FluxDesktop] Starting window controls monitor (reapplies every 2s)');
+      const monitorInterval = setInterval(async () => {
+        if (!proc.killed && proc.exitCode === null) {
+          await applyNativeWindowControls(proc, windowControls, browserName, true).catch(() => {
+            // Ignore errors during monitoring
+          });
+        } else {
+          clearInterval(monitorInterval);
+        }
+      }, 2000);
+
+      // Clean up on process exit
+      proc.on('exit', () => {
+        clearInterval(monitorInterval);
       });
     }
 

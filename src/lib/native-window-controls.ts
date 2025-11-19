@@ -122,7 +122,8 @@ function Modify-WindowStyle {
 export async function applyNativeWindowControls(
   proc: { pid?: number; killed?: boolean },
   config: WindowControlsConfig,
-  browserName: string
+  browserName: string,
+  silent: boolean = false // Silent mode for monitoring (less logging)
 ): Promise<void> {
   if (process.platform !== 'win32') {
     console.warn('[FluxDesktop] Native window controls only supported on Windows');
@@ -146,16 +147,21 @@ export async function applyNativeWindowControls(
     return;
   }
 
-  console.log(`[FluxDesktop] Will apply: ${modifications.join(', ')}`);
-  console.log(`[FluxDesktop] Process ID: ${proc.pid}`);
+  if (!silent) {
+    console.log(`[FluxDesktop] Will apply: ${modifications.join(', ')}`);
+    console.log(`[FluxDesktop] Process ID: ${proc.pid}`);
+  }
 
   // Try multiple times with increasing delays (browsers can be slow to create windows)
-  const maxAttempts = 5;
+  // In silent mode (monitoring), only try once with no delay
+  const maxAttempts = silent ? 1 : 5;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const waitTime = 1000 + (attempt * 500); // 1.5s, 2s, 2.5s, 3s, 3.5s
-    console.log(`[FluxDesktop] Attempt ${attempt}/${maxAttempts} - waiting ${waitTime}ms...`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
+    if (!silent) {
+      const waitTime = 1000 + (attempt * 500); // 1.5s, 2s, 2.5s, 3s, 3.5s
+      console.log(`[FluxDesktop] Attempt ${attempt}/${maxAttempts} - waiting ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
 
     try {
       // Build PowerShell command (escape properly for command line)
@@ -176,34 +182,44 @@ Modify-WindowStyle -ProcessId ${proc.pid} -EnableMinimize $${config.enableMinimi
           { timeout: 10000 }
         );
 
-        console.log('[FluxDesktop] === PowerShell Output ===');
-        if (stdout && stdout.trim()) {
-          console.log(stdout.trim());
-        } else {
-          console.log('(no output)');
-        }
+        if (!silent) {
+          console.log('[FluxDesktop] === PowerShell Output ===');
+          if (stdout && stdout.trim()) {
+            console.log(stdout.trim());
+          } else {
+            console.log('(no output)');
+          }
 
-        if (stderr && stderr.trim()) {
-          console.log('[FluxDesktop] === PowerShell Errors ===');
-          console.warn(stderr.trim());
+          if (stderr && stderr.trim()) {
+            console.log('[FluxDesktop] === PowerShell Errors ===');
+            console.warn(stderr.trim());
+          }
         }
 
         // Check if output indicates success
         if (stdout.includes('Applied window modifications successfully')) {
-          console.log('[FluxDesktop] ✅ Native window controls applied successfully');
+          if (!silent) {
+            console.log('[FluxDesktop] ✅ Native window controls applied successfully');
+          }
           return; // Success! Exit function
         } else if (stdout.includes('Window not found')) {
-          console.warn(`[FluxDesktop] ⚠️ Window not found for process (attempt ${attempt}/${maxAttempts})`);
+          if (!silent) {
+            console.warn(`[FluxDesktop] ⚠️ Window not found for process (attempt ${attempt}/${maxAttempts})`);
+          }
           if (attempt < maxAttempts) {
-            console.log('[FluxDesktop] Retrying...');
+            if (!silent) console.log('[FluxDesktop] Retrying...');
             continue; // Try again
           } else {
-            console.error('[FluxDesktop] ❌ Failed to find window after all attempts');
-            console.error('[FluxDesktop] The browser window might not have a valid MainWindowHandle yet');
+            if (!silent) {
+              console.error('[FluxDesktop] ❌ Failed to find window after all attempts');
+              console.error('[FluxDesktop] The browser window might not have a valid MainWindowHandle yet');
+            }
             return;
           }
         } else {
-          console.warn('[FluxDesktop] ⚠️ Unexpected PowerShell output, controls might not be applied');
+          if (!silent) {
+            console.warn('[FluxDesktop] ⚠️ Unexpected PowerShell output, controls might not be applied');
+          }
           return;
         }
       } finally {
