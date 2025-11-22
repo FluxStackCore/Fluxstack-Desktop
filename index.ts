@@ -74,47 +74,60 @@ export class FluxStackDesktopPlugin implements FluxStack.Plugin {
     if (!FluxStackDesktopConfig.enabled) return
 
     if (FluxStackDesktopConfig.autoOpen) {
-      try {
-        context.logger.info(`[FluxStack Desktop] Opening desktop window at ${FluxStackDesktopConfig.targetUrl}`)
+      const maxRetries = 3
+      const retryDelay = 2000 // 2 seconds
 
-        const windowSize: [number, number] = [
-          FluxStackDesktopConfig.windowWidth,
-          FluxStackDesktopConfig.windowHeight
-        ]
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          context.logger.info(`[FluxStack Desktop] Opening desktop window at ${FluxStackDesktopConfig.targetUrl}${attempt > 1 ? ` (attempt ${attempt}/${maxRetries})` : ''}`)
 
-        const forceBrowserConfig = FluxStackDesktopConfig.forceBrowser
-        const forceBrowser = forceBrowserConfig && isBrowserName(forceBrowserConfig)
-          ? forceBrowserConfig
-          : undefined
+          const windowSize: [number, number] = [
+            FluxStackDesktopConfig.windowWidth,
+            FluxStackDesktopConfig.windowHeight
+          ]
 
-        // Setup auto-shutdown callback if enabled
-        const onBrowserExit = FluxStackDesktopConfig.autoShutdown
-          ? () => {
-              context.logger.info(`[FluxStack Desktop] Browser window closed, shutting down server...`)
+          const forceBrowserConfig = FluxStackDesktopConfig.forceBrowser
+          const forceBrowser = forceBrowserConfig && isBrowserName(forceBrowserConfig)
+            ? forceBrowserConfig
+            : undefined
 
-              // Add shutdown delay for graceful cleanup
-              setTimeout(() => {
-                context.logger.info(`[FluxStack Desktop] Initiating graceful server shutdown`)
-                process.exit(0)
-              }, FluxStackDesktopConfig.shutdownDelay)
+          // Setup auto-shutdown callback if enabled
+          const onBrowserExit = FluxStackDesktopConfig.autoShutdown
+            ? () => {
+                context.logger.info(`[FluxStack Desktop] Browser window closed, shutting down server...`)
+
+                // Add shutdown delay for graceful cleanup
+                setTimeout(() => {
+                  context.logger.info(`[FluxStack Desktop] Initiating graceful server shutdown`)
+                  process.exit(0)
+                }, FluxStackDesktopConfig.shutdownDelay)
+              }
+            : undefined
+
+          const browser = await open(FluxStackDesktopConfig.targetUrl, {
+            windowSize,
+            ...(forceBrowser && { forceBrowser }),
+            ...(onBrowserExit && { onBrowserExit })
+          })
+
+          if (browser) {
+            context.logger.info(`[FluxStack Desktop] Desktop window opened successfully`)
+
+            if (FluxStackDesktopConfig.autoShutdown) {
+              context.logger.info(`[FluxStack Desktop] Auto-shutdown enabled - server will close when browser window closes`)
             }
-          : undefined
+            return // Success, exit the retry loop
+          }
+        } catch (error) {
+          context.logger.error(`[FluxStack Desktop] Failed to open desktop window (attempt ${attempt}/${maxRetries}):`, error)
 
-        const browser = await open(FluxStackDesktopConfig.targetUrl, {
-          windowSize,
-          ...(forceBrowser && { forceBrowser }),
-          ...(onBrowserExit && { onBrowserExit })
-        })
-
-        if (browser) {
-          context.logger.info(`[FluxStack Desktop] Desktop window opened successfully`)
-
-          if (FluxStackDesktopConfig.autoShutdown) {
-            context.logger.info(`[FluxStack Desktop] Auto-shutdown enabled - server will close when browser window closes`)
+          if (attempt < maxRetries) {
+            context.logger.info(`[FluxStack Desktop] Retrying in ${retryDelay / 1000} seconds...`)
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
+          } else {
+            context.logger.error(`[FluxStack Desktop] All ${maxRetries} attempts failed. Desktop window could not be opened.`)
           }
         }
-      } catch (error) {
-        context.logger.error(`[FluxStack Desktop] Failed to open desktop window:`, error)
       }
     }
   }

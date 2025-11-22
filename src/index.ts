@@ -5,7 +5,6 @@ import Chromium from './browser/chromium';
 import Firefox from './browser/firefox';
 import { loadOnLoadWrapper } from './lib/scripts';
 import FluxStackDesktopConfig from '../config';
-import { ensureChromium, hasLocalChromium, getLocalChromiumPath } from './lib/chromium-downloader';
 // import IdleAPI from './lib/idle';
 
 // Global log function with colored output
@@ -184,22 +183,7 @@ const findBrowserPath = async (forceBrowser?: BrowserName): Promise<[string, Bro
     }
   }
 
-  // 7. Fallback: Try local Chromium first, then download if needed
-  try {
-    if (await hasLocalChromium()) {
-      const chromiumPath = getLocalChromiumPath();
-      log('using local Chromium:', chromiumPath);
-      return [chromiumPath, 'chromium'];
-    }
-
-    // No browser found anywhere, download Chromium
-    log('no browser found in system, will download Chromium');
-    const chromiumPath = await ensureChromium();
-    return [chromiumPath, 'chromium'];
-  } catch (error) {
-    log('failed to ensure Chromium:', error instanceof Error ? error.message : String(error));
-    return null;
-  }
+  return null;
 };
 
 const getFriendlyName = (whichBrowser: string): string =>
