@@ -81,13 +81,21 @@ export default async ({ pipe, port }: CDPConnectionOptions): Promise<CDPConnecti
   };
 
   if (port) {
-    const continualTrying = async <T>(func: () => Promise<T>): Promise<T> => {
-      return new Promise(resolve => {
+    const continualTrying = async <T>(func: () => Promise<T>, maxAttempts = 50): Promise<T> => {
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+
         const attempt = async (): Promise<void> => {
           try {
             process.stdout.write('.');
             resolve(await func());
           } catch (e) {
+            attempts++;
+            if (attempts >= maxAttempts) {
+              console.log();
+              reject(new Error(`CDP connection failed after ${maxAttempts} attempts (${maxAttempts * 200}ms timeout)`));
+              return;
+            }
             // fail, wait 200ms and try again
             await new Promise(res => setTimeout(res, 200));
             await attempt();
@@ -101,7 +109,7 @@ export default async ({ pipe, port }: CDPConnectionOptions): Promise<CDPConnecti
     const targets = await continualTrying(async () => {
       const response = await fetch(`http://127.0.0.1:${port}/json/list`);
       return response.json();
-    });
+    }, 50); // 50 attempts * 200ms = 10 seconds timeout
 
     console.log();
 
